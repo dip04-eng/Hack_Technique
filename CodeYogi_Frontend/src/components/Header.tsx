@@ -287,24 +287,12 @@ export const Header: React.FC<HeaderProps> = ({
               createPortal(
                 <AnimatePresence>
                   <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[999998]"
-                    onClick={(e) => {
-                      // Only close if clicking directly on the backdrop, not on child elements
-                      if (e.target === e.currentTarget) {
-                        console.log("Backdrop clicked, closing dropdown");
-                        setIsRepoDropdownOpen(false);
-                      }
-                    }}
-                  />
-                  <motion.div
+                    ref={dropdownRef}
                     initial={{ opacity: 0, y: -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    className="fixed w-80 bg-black/95 backdrop-blur-xl border border-green-500/30 rounded-lg shadow-2xl shadow-green-500/20 z-[9999999] max-h-80 overflow-y-auto"
+                    className="fixed w-80 bg-black/95 backdrop-blur-xl border border-green-500/30 rounded-lg shadow-2xl shadow-green-500/20 max-h-80 overflow-y-auto"
                     style={{
                       top: dropdownPosition.top,
                       left: dropdownPosition.left,
@@ -315,9 +303,8 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="p-3 border-b border-gray-700/50">
                       <button
                         className="w-full px-3 py-2 bg-gray-800/80 border border-green-500/30 rounded-lg text-green-300 text-sm hover:border-green-400/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
+                        onClick={() => {
+                          console.log("Fetch Repos button clicked");
                           handleManualFetchRepos();
                         }}
                         disabled={manualFetchLoading || authLoading}
@@ -344,7 +331,7 @@ export const Header: React.FC<HeaderProps> = ({
                           repo.name
                         );
                         return (
-                          <motion.button
+                          <button
                             key={
                               repo.id
                                 ? String(repo.id)
@@ -352,16 +339,8 @@ export const Header: React.FC<HeaderProps> = ({
                                 ? repo.name
                                 : `repo-${index}`
                             }
-                            whileHover={{
-                              backgroundColor: "rgba(34, 197, 94, 0.1)",
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={() => {
                               console.log("Repository clicked:", repo.name);
-                              handleRepoSelect(repo);
-                            }}
-                            onMouseDown={() => {
-                              console.log("Repository mouse down:", repo.name);
                               handleRepoSelect(repo);
                             }}
                             className="w-full p-3 text-left border-b border-gray-700/50 last:border-b-0 hover:bg-green-500/10 transition-colors"
@@ -394,7 +373,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 </div>
                               </div>
                             </div>
-                          </motion.button>
+                          </button>
                         );
                       })
                     )}

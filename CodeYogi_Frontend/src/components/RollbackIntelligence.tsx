@@ -349,7 +349,10 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
       )}
 
       {/* Rollback Candidates List */}
-      <div className="space-y-4">
+      <div 
+        className="space-y-4 overflow-y-auto pr-2"
+        style={{ maxHeight: '600px' }}
+      >
         <AnimatePresence>
           {rollbackData.candidates.map((candidate, index) => {
             const isRecommended =
