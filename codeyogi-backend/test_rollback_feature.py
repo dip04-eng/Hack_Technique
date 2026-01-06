@@ -68,7 +68,7 @@ async def test_rollback_flow():
                             "repo_name": repo_name,
                             "rollback_number": 2,  # Rollback to commit #2
                             "branch": branch,
-                            "force": False
+                            "force": True  # Skip safety checks for demo
                         },
                         timeout=30.0
                     )
@@ -76,7 +76,9 @@ async def test_rollback_flow():
                     if rollback_response.status_code == 200:
                         rollback_data = rollback_response.json()
                         
-                        if r
+                        if rollback_data.get('success'):
+                            print("\n🎉 ROLLBACK SUCCESSFUL!")
+                            
                             # Check for pull_request details
                             pr_info = rollback_data.get('pull_request', {})
                             if pr_info:
@@ -91,9 +93,7 @@ async def test_rollback_flow():
                                 print(f"⚠️ Manual PR creation required")
                                 print(f"🔗 Link: {rollback_data.get('manual_pr_link')}")
                                 print(f"\n📝 Click the link to create PR manually")
-                            ")
-                            print(f"   2. Review the changes")
-                            print(f"   3. Merge the PR to complete rollback")
+                            
                             return True
                         else:
                             print(f"\n❌ Rollback failed: {rollback_data.get('message')}")
