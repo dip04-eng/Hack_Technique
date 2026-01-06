@@ -92,27 +92,34 @@ class RollbackIntelligenceAgent:
                     "deletions": commit.stats.deletions,
                 }
                 
-                # Check if commit has deployment info (from GitHub Actions/deployments)
-                try:
-                    deployments = repo.get_deployments(sha=commit.sha)
-                    if deployments.totalCount > 0:
-                        latest_deployment = deployments[0]
-                        statuses = latest_deployment.get_statuses()
-                        if statuses.totalCount > 0:
-                            commit_data["deployment_status"] = statuses[0].state
-                        else:
-                            commit_data["deployment_status"] = "unknown"
-                    else:
-                        commit_data["deployment_status"] = "not_deployed"
-                except Exception:
-                    commit_data["deployment_status"] = "unknown"
+                # Check if commit has deployment info (skip to avoid timeout - can be slow)
+                # This is optional and removed to speed up the response
+                commit_data["deployment_status"] = "unknown"  # Default to unknown for faster response
                 
                 candidates.append(commit_data)
             
-            # AI analysis for best rollback candidate
+            # AI analysis for best rollback candidate (with timeout handling)
             ai_recommendation = None
             if self.groq_client:
-                ai_recommendation = self._analyze_best_candidate(candidates, repo_owner, repo_name)
+                try:
+                    import signal
+                    
+                    # Wrap AI analysis with timeout
+                    def timeout_handler(signum, frame):
+                        raise TimeoutError("AI analysis timeout")
+                    
+                    # Skip signal on Windows (not supported)
+                    if hasattr(signal, 'SIGALRM'):
+                        signal.signal(signal.SIGALRM, timeout_handler)
+                        signal.alarm(15)  # 15 second timeout
+                    
+                    ai_recommendation = self._analyze_best_candidate(candidates, repo_owner, repo_name)
+                    
+                    if hasattr(signal, 'SIGALRM'):
+                        signal.alarm(0)  # Cancel alarm
+                except (TimeoutError, Exception) as e:
+                    print(f"AI analysis skipped or failed: {e}")
+                    ai_recommendation = None
             
             return {
                 "success": True,
@@ -218,11 +225,13 @@ REASON: [brief reason]
 WARNING: [warning message or NONE]
 """
             
+            # Set a shorter timeout for AI analysis to prevent hanging
             response = self.groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
-                max_tokens=300
+                max_tokens=150,  # Reduced for faster response
+                timeout=10.0  # 10 second timeout
             )
             
             ai_response = response.choices[0].message.content.strip()

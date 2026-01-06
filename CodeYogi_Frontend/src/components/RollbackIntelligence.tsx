@@ -114,7 +114,7 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout (increased)
       
       const response = await fetch('http://localhost:8000/api/rollback/candidates', {
         signal: controller.signal,
@@ -138,9 +138,9 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
       setRollbackData(data);
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        setError('Request timed out. Please check if the backend is running and try again.');
+        setError('Request timed out after 60 seconds. The backend may be analyzing commits or not running. Check console logs.');
       } else {
-        setError(err.message || 'An error occurred while fetching rollback candidates');
+        setError(err.message || 'An error occurred while fetching rollback candidates. Make sure backend is running on port 8000.');
       }
     } finally {
       setLoading(false);
@@ -263,9 +263,10 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <Loader className="w-8 h-8 text-blue-400 animate-spin" />
-        <span className="ml-3 text-gray-300">Loading rollback candidates...</span>
+      <div className="flex flex-col items-center justify-center p-12">
+        <Loader className="w-8 h-8 text-blue-400 animate-spin mb-4" />
+        <span className="text-gray-300 text-lg mb-2">Loading rollback candidates...</span>
+        <span className="text-gray-500 text-sm">Fetching commits and analyzing safety (this may take up to 60 seconds)</span>
       </div>
     );
   }
