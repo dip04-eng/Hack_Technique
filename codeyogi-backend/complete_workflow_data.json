@@ -1,0 +1,84 @@
+{
+  "workflow_optimization": {
+    "success": true,
+    "pr_number": 42,
+    "pr_url": "https://github.com/example/awesome-project/pull/42",
+    "branch_name": "codeyogi-optimization",
+    "commit_sha": "abc123def456",
+    "workflow_path": ".github/workflows/codeyogi-optimized.yml",
+    "ai_completion_metrics": {
+      "total_ai_completions": 1,
+      "ai_processing_time": 1643723400.0,
+      "ai_model_used": "CodeYogi AI v2.0",
+      "ai_confidence_score": 0.94,
+      "ai_suggestions_applied": 1
+    },
+    "code_optimization_metrics": {
+      "files_optimized": 1,
+      "lines_of_code_improved": 150,
+      "performance_improvement_percent": 35.0,
+      "complexity_reduction_percent": 25.0,
+      "security_issues_fixed": 3,
+      "code_duplication_reduced_percent": 15.0,
+      "test_coverage_improvement": 12.0,
+      "build_time_reduction_percent": 40.0
+    },
+    "carbon_savings_metrics": {
+      "total_co2_saved_kg": 1.125,
+      "co2_saved_build_process": 0.225,
+      "co2_saved_runtime": 0.735,
+      "co2_saved_development": 0.165,
+      "trees_equivalent": 0.05,
+      "car_miles_equivalent": 2.8,
+      "energy_saved_kwh": 2.25,
+      "monthly_savings_estimate": 13.5,
+      "carbon_footprint_reduction_percent": 11.3
+    },
+    "repository_statistics": {
+      "repo_size": 1250,
+      "repo_language": "JavaScript",
+      "stars_count": 45,
+      "forks_count": 12,
+      "open_issues": 8
+    },
+    "session_information": {
+      "optimization_timestamp": "2025-01-27T10:30:45.123456",
+      "session_id": "codeyogi-1643723445",
+      "optimization_type": "workflow"
+    }
+  },
+  "multi_file_optimization": {
+    "success": true,
+    "pr_number": 43,
+    "pr_url": "https://github.com/example/awesome-project/pull/43",
+    "branch_name": "codeyogi-code-optimization",
+    "files_count": 3,
+    "ai_completion_metrics": {
+      "total_ai_completions": 3,
+      "ai_model_used": "CodeYogi AI v2.0",
+      "ai_confidence_score": 0.96
+    },
+    "code_optimization_metrics": {
+      "files_optimized": 3,
+      "lines_of_code_improved": 245,
+      "performance_improvement_percent": 42.5,
+      "security_issues_fixed": 2
+    },
+    "carbon_savings_metrics": {
+      "total_co2_saved_kg": 3.125,
+      "energy_saved_kwh": 6.25,
+      "trees_equivalent": 0.14
+    }
+  },
+  "optimized_files": {
+    "src/components/App.js": "// Optimized React component with performance improvements\nimport React, { memo, useMemo, useCallback } from 'react';\nimport { optimizedAPI } from '../utils/api';\n\nconst App = memo(({ data }) => {\n  const processedData = useMemo(() => \n    data.map(item => ({ ...item, processed: true }))\n  , [data]);\n  \n  const handleClick = useCallback((id) => {\n    optimizedAPI.updateItem(id);\n  }, []);\n  \n  return (\n    <div className=\"app-container\">\n      {processedData.map(item => (\n        <div key={item.id} onClick={() => handleClick(item.id)}>\n          {item.name}\n        </div>\n      ))}\n    </div>\n  );\n});\n\nexport default App;",
+    "src/utils/api.js": "// Optimized API utility with caching and error handling\nclass OptimizedAPI {\n  constructor() {\n    this.cache = new Map();\n    this.pendingRequests = new Map();\n  }\n  \n  async getData(endpoint) {\n    if (this.cache.has(endpoint)) {\n      return this.cache.get(endpoint);\n    }\n    \n    if (this.pendingRequests.has(endpoint)) {\n      return this.pendingRequests.get(endpoint);\n    }\n    \n    const request = this.fetchWithRetry(endpoint);\n    this.pendingRequests.set(endpoint, request);\n    \n    try {\n      const data = await request;\n      this.cache.set(endpoint, data);\n      return data;\n    } finally {\n      this.pendingRequests.delete(endpoint);\n    }\n  }\n  \n  async fetchWithRetry(endpoint, retries = 3) {\n    for (let i = 0; i < retries; i++) {\n      try {\n        const response = await fetch(endpoint);\n        if (!response.ok) throw new Error(`HTTP ${response.status}`);\n        return await response.json();\n      } catch (error) {\n        if (i === retries - 1) throw error;\n        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));\n      }\n    }\n  }\n}\n\nexport const optimizedAPI = new OptimizedAPI();",
+    "tests/app.test.js": "// Optimized test suite with better coverage\nimport { render, screen, fireEvent, waitFor } from '@testing-library/react';\nimport { jest } from '@jest/globals';\nimport App from '../src/components/App';\nimport { optimizedAPI } from '../src/utils/api';\n\n// Mock the API\njest.mock('../src/utils/api');\n\ndescribe('App Component', () => {\n  const mockData = [\n    { id: 1, name: 'Item 1' },\n    { id: 2, name: 'Item 2' }\n  ];\n  \n  beforeEach(() => {\n    jest.clearAllMocks();\n  });\n  \n  it('renders items correctly', () => {\n    render(<App data={mockData} />);\n    expect(screen.getByText('Item 1')).toBeInTheDocument();\n    expect(screen.getByText('Item 2')).toBeInTheDocument();\n  });\n  \n  it('handles item clicks', async () => {\n    const updateSpy = jest.spyOn(optimizedAPI, 'updateItem');\n    render(<App data={mockData} />);\n    \n    fireEvent.click(screen.getByText('Item 1'));\n    \n    await waitFor(() => {\n      expect(updateSpy).toHaveBeenCalledWith(1);\n    });\n  });\n  \n  it('memoizes processed data', () => {\n    const { rerender } = render(<App data={mockData} />);\n    const initialElements = screen.getAllByText(/Item/);\n    \n    // Re-render with same data\n    rerender(<App data={mockData} />);\n    const newElements = screen.getAllByText(/Item/);\n    \n    // Elements should be the same (memoized)\n    expect(initialElements).toEqual(newElements);\n  });\n});"
+  },
+  "workflow_summary": {
+    "total_optimizations": 2,
+    "total_files_optimized": 4,
+    "total_co2_saved": 4.25,
+    "total_performance_improvement": 38.75
+  }
+}
