@@ -62,7 +62,7 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
   repoName,
   branch = 'main',
 }) => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [rollbackData, setRollbackData] = useState<RollbackData | null>(null);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [executing, setExecuting] = useState(false);
@@ -72,8 +72,41 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchRollbackCandidates();
+    if (repoOwner && repoName) {
+      fetchRollbackCandidates();
+    }
   }, [repoOwner, repoName, branch]);
+
+  // Show message if no repository is selected
+  if (!repoOwner || !repoName) {
+    return (
+      <div className="h-full flex items-center justify-center p-8">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center max-w-md"
+        >
+          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center border border-blue-500/30">
+            <RotateCcw className="w-10 h-10 text-blue-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">Rollback Intelligence</h2>
+          <p className="text-gray-400 mb-6">
+            Select a repository from the dropdown above to view rollback candidates and safely revert to previous versions.
+          </p>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 text-left">
+            <h3 className="text-blue-400 font-medium mb-2">How to use:</h3>
+            <ol className="text-sm text-gray-300 space-y-2">
+              <li>1. Select a repository from the header dropdown</li>
+              <li>2. View recent commits as rollback candidates</li>
+              <li>3. AI recommends the safest rollback target</li>
+              <li>4. Click rollback to create a PR on GitHub</li>
+              <li>5. Review and merge the PR to complete</li>
+            </ol>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   const fetchRollbackCandidates = async () => {
     setLoading(true);
@@ -104,7 +137,11 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
       const data = await response.json();
       setRollbackData(data);
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      if (err.name === 'AbortError') {
+        setError('Request timed out. Please check if the backend is running and try again.');
+      } else {
+        setError(err.message || 'An error occurred while fetching rollback candidates');
+      }
     } finally {
       setLoading(false);
     }
@@ -120,7 +157,11 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
 
     // Check safety first
     try {
+      const safetyController = new AbortController();
+      const safetyTimeoutId = setTimeout(() => safetyController.abort(), 30000);
+      
       const safetyResponse = await fetch('http://localhost:8000/api/rollback/safety-check', {
+        signal: safetyController.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -130,6 +171,8 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
           branch: branch,
         }),
       });
+      
+      clearTimeout(safetyTimeoutId);
 
       const safetyData = await safetyResponse.json();
 
@@ -139,8 +182,12 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
       } else {
         executeRollback(number, false);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Safety check error:', err);
+      // If safety check fails, proceed with caution
+      if (err.name === 'AbortError') {
+        console.warn('Safety check timed out, proceeding with rollback');
+      }
       executeRollback(number, false);
     }
   };

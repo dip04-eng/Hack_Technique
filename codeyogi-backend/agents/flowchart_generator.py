@@ -171,7 +171,8 @@ def generate_deployment_flowchart(repo_info: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary containing deployment flowchart and metadata
     """
-    language = repo_info.get("language", "").lower()
+    language_value = repo_info.get("language")
+    language = language_value.lower() if language_value else ""
     repo_name = repo_info.get("name", "project")
 
     # Language-specific deployment strategies

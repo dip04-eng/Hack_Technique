@@ -14,13 +14,49 @@ const WorkflowDeploymentView: React.FC<{
   const [showComparison, setShowComparison] = useState(true);
   const [metricsSaved, setMetricsSaved] = useState(false);
 
+  // Safely access nested properties with defaults
+  const prInfo = data?.pr_info || {};
+  const optimizationAnalysis = data?.optimization_analysis || {};
+  const analysis = optimizationAnalysis?.analysis || {};
+  const aiInsights = optimizationAnalysis?.ai_insights || {};
+  const optimizedWorkflow = optimizationAnalysis?.optimized_workflow || {};
+  const recommendations = optimizationAnalysis?.recommendations || {};
+  const existingWorkflows = analysis?.existing_workflows || [];
+
   // Save metrics to Firebase when component mounts with new data
   useEffect(() => {
     const saveMetrics = async () => {
-      if (user && data.pr_info && data.pr_info.success && !metricsSaved) {
+      if (user && prInfo?.success && !metricsSaved) {
         try {
           console.log("Saving workflow metrics to Firebase...");
-          await saveWorkflowMetrics(user.uid, data.pr_info);
+          
+          // Build a complete metrics object from available data
+          const metricsToSave = {
+            // PR Info
+            pr_number: prInfo?.pr_number || 0,
+            pr_url: prInfo?.pr_url || '',
+            branch_name: prInfo?.branch_name || '',
+            commit_sha: prInfo?.commit_sha || '',
+            workflow_path: prInfo?.workflow_path || '',
+            success: prInfo?.success || false,
+            
+            // Repository info
+            repo_name: repoName,
+            
+            // Optimization details
+            optimization_type: optimizedWorkflow?.optimization_type || 'workflow',
+            confidence_score: optimizedWorkflow?.confidence_score || 0,
+            estimated_time_savings: optimizedWorkflow?.estimated_time_savings || 'N/A',
+            improvements: optimizedWorkflow?.improvements || [],
+            
+            // AI insights
+            model_used: aiInsights?.model_used || 'unknown',
+            
+            // Timestamps
+            timestamp: new Date().toISOString(),
+          };
+          
+          await saveWorkflowMetrics(user.uid, metricsToSave);
           setMetricsSaved(true);
           console.log("Workflow metrics saved successfully");
 
@@ -46,7 +82,7 @@ const WorkflowDeploymentView: React.FC<{
     };
 
     saveMetrics();
-  }, [user, data.pr_info, metricsSaved]);
+  }, [user, prInfo, metricsSaved, optimizedWorkflow, aiInsights, repoName]);
 
   const copyToClipboard = async (text: string, section: string) => {
     try {
@@ -59,10 +95,26 @@ const WorkflowDeploymentView: React.FC<{
   };
 
   // Get the old workflow content from existing workflows
-  const oldWorkflow =
-    data.optimization_analysis.analysis.existing_workflows.find(
-      (w) => w.type === "github-actions"
+  const oldWorkflow = existingWorkflows.find(
+    (w: any) => w.type === "github-actions"
+  );
+
+  // If there's no valid data, show an error state
+  if (!data || (!data.success && data.error_message)) {
+    return (
+      <div className="workflow-deployment">
+        <div className="deployment-header">
+          <h2 className="deployment-title">❌ Deployment Failed</h2>
+          <div className="deployment-subtitle">
+            Failed to optimize workflow for {repoName}
+          </div>
+          <div className="error-badge">
+            {data?.error_message || "An unknown error occurred"}
+          </div>
+        </div>
+      </div>
     );
+  }
 
   return (
     <>
@@ -76,7 +128,7 @@ const WorkflowDeploymentView: React.FC<{
           </div>
 
           {/* Success/Error Status */}
-          {data.pr_info.success ? (
+          {prInfo?.success ? (
             <div className="success-badge">
               ✅ Pull Request Created Successfully
             </div>
@@ -86,6 +138,7 @@ const WorkflowDeploymentView: React.FC<{
         </div>
 
         {/* Pull Request Information */}
+        {prInfo?.pr_number && (
         <div className="deployment-section">
           <h3 className="section-title">
             <span className="section-icon">📋</span>
@@ -96,46 +149,52 @@ const WorkflowDeploymentView: React.FC<{
             <div className="pr-details">
               <div className="detail-item">
                 <span className="detail-label">🔄 PR Number:</span>
-                <span className="detail-value">#{data.pr_info.pr_number}</span>
+                <span className="detail-value">#{prInfo?.pr_number || 'N/A'}</span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">🌿 Branch:</span>
-                <span className="detail-value">{data.pr_info.branch_name}</span>
+                <span className="detail-value">{prInfo?.branch_name || 'N/A'}</span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">📁 Workflow File:</span>
                 <span className="detail-value">
-                  {data.pr_info.workflow_path}
+                  {prInfo?.workflow_path || 'N/A'}
                 </span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">🔗 Commit SHA:</span>
                 <span className="detail-value">
-                  {data.pr_info.commit_sha.substring(0, 8)}...
+                  {prInfo?.commit_sha ? prInfo.commit_sha.substring(0, 8) + '...' : 'N/A'}
                 </span>
               </div>
             </div>
 
             <div className="pr-actions">
+              {prInfo?.pr_url && (
               <a
-                href={data.pr_info.pr_url}
+                href={prInfo.pr_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="pr-link-button"
               >
                 🔗 View Pull Request
               </a>
+              )}
+              {prInfo?.pr_url && (
               <button
-                onClick={() => copyToClipboard(data.pr_info.pr_url, "pr_url")}
+                onClick={() => copyToClipboard(prInfo.pr_url, "pr_url")}
                 className="copy-pr-button"
               >
                 {copiedSection === "pr_url" ? "✅ Copied!" : "📋 Copy PR URL"}
               </button>
+              )}
             </div>
           </div>
         </div>
+        )}
 
         {/* AI Analysis Section */}
+        {aiInsights?.ai_analysis && (
         <div className="deployment-section">
           <h3 className="section-title">
             <span className="section-icon">🤖</span>
@@ -145,7 +204,7 @@ const WorkflowDeploymentView: React.FC<{
             <div
               className="analysis-text"
               dangerouslySetInnerHTML={{
-                __html: data.optimization_analysis.ai_insights.ai_analysis
+                __html: (aiInsights?.ai_analysis || '')
                   .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
                   .replace(/### ([^\n]+)/g, "<h4>$1</h4>")
                   .replace(/#### ([^\n]+)/g, "<h5>$1</h5>")
@@ -155,22 +214,20 @@ const WorkflowDeploymentView: React.FC<{
             />
           </div>
         </div>
+        )}
 
         {/* Workflow Comparison Section */}
+        {optimizedWorkflow?.workflow_content && (
         <div className="deployment-section">
           <h3 className="section-title">
             <span className="section-icon">⚡</span>
             Workflow Comparison
             <div className="workflow-meta">
               <span className="workflow-type">
-                {
-                  data.optimization_analysis.optimized_workflow
-                    .optimization_type
-                }
+                {optimizedWorkflow?.optimization_type || 'Optimized'}
               </span>
               <span className="confidence-score">
-                {data.optimization_analysis.optimized_workflow.confidence_score}
-                % Confidence
+                {optimizedWorkflow?.confidence_score || 0}% Confidence
               </span>
             </div>
           </h3>
@@ -203,18 +260,12 @@ const WorkflowDeploymentView: React.FC<{
                   <div className="panel-header">
                     <h4>🟢 Optimized Workflow</h4>
                     <span className="workflow-name">
-                      {
-                        data.optimization_analysis.optimized_workflow
-                          .workflow_name
-                      }
+                      {optimizedWorkflow?.workflow_name || 'Optimized Workflow'}
                     </span>
                   </div>
                   <pre className="workflow-code new">
                     <code>
-                      {
-                        data.optimization_analysis.optimized_workflow
-                          .workflow_content
-                      }
+                      {optimizedWorkflow?.workflow_content || ''}
                     </code>
                   </pre>
                 </div>
@@ -224,13 +275,12 @@ const WorkflowDeploymentView: React.FC<{
             <div className="workflow-file">
               <div className="file-header">
                 <span className="file-name">
-                  {data.optimization_analysis.optimized_workflow.workflow_name}
+                  {optimizedWorkflow?.workflow_name || 'Optimized Workflow'}
                 </span>
                 <button
                   onClick={() =>
                     copyToClipboard(
-                      data.optimization_analysis.optimized_workflow
-                        .workflow_content,
+                      optimizedWorkflow?.workflow_content || '',
                       "workflow"
                     )
                   }
@@ -241,20 +291,18 @@ const WorkflowDeploymentView: React.FC<{
               </div>
               <pre className="workflow-code">
                 <code>
-                  {
-                    data.optimization_analysis.optimized_workflow
-                      .workflow_content
-                  }
+                  {optimizedWorkflow?.workflow_content || ''}
                 </code>
               </pre>
             </div>
           )}
 
           {/* Improvements List */}
+          {optimizedWorkflow?.improvements && optimizedWorkflow.improvements.length > 0 && (
           <div className="improvements-grid">
             <h4 className="improvements-title">✨ Applied Improvements</h4>
             <div className="improvements-list">
-              {data.optimization_analysis.optimized_workflow.improvements.map(
+              {(optimizedWorkflow?.improvements || []).map(
                 (improvement: string, index: number) => (
                   <div key={index} className="improvement-item">
                     <span className="improvement-icon">🔧</span>
@@ -264,9 +312,12 @@ const WorkflowDeploymentView: React.FC<{
               )}
             </div>
           </div>
+          )}
         </div>
+        )}
 
         {/* Next Steps */}
+        {recommendations?.implementation_steps && (
         <div className="deployment-section">
           <h3 className="section-title">
             <span className="section-icon">🎯</span>
@@ -274,10 +325,11 @@ const WorkflowDeploymentView: React.FC<{
           </h3>
 
           <div className="next-steps-grid">
+            {recommendations?.implementation_steps && recommendations.implementation_steps.length > 0 && (
             <div className="next-step-card">
               <h4 className="card-title">📝 Implementation Steps</h4>
               <ol className="steps-list">
-                {data.optimization_analysis.recommendations.implementation_steps.map(
+                {(recommendations?.implementation_steps || []).map(
                   (step: string, index: number) => (
                     <li key={index} className="step-item">
                       {step}
@@ -286,11 +338,13 @@ const WorkflowDeploymentView: React.FC<{
                 )}
               </ol>
             </div>
+            )}
 
+            {recommendations?.required_secrets && recommendations.required_secrets.length > 0 && (
             <div className="next-step-card">
               <h4 className="card-title">⚙️ Configure Secrets</h4>
               <ul className="secrets-list">
-                {data.optimization_analysis.recommendations.required_secrets.map(
+                {(recommendations?.required_secrets || []).map(
                   (secret: string, index: number) => (
                     <li key={index} className="secret-item">
                       <span className="secret-icon">🔐</span>
@@ -300,11 +354,13 @@ const WorkflowDeploymentView: React.FC<{
                 )}
               </ul>
             </div>
+            )}
 
+            {recommendations?.testing_checklist && recommendations.testing_checklist.length > 0 && (
             <div className="next-step-card">
               <h4 className="card-title">✅ Testing Checklist</h4>
               <ul className="checklist">
-                {data.optimization_analysis.recommendations.testing_checklist.map(
+                {(recommendations?.testing_checklist || []).map(
                   (item: string, index: number) => (
                     <li key={index} className="checklist-item">
                       <span className="checkbox">☐</span>
@@ -314,38 +370,40 @@ const WorkflowDeploymentView: React.FC<{
                 )}
               </ul>
             </div>
+            )}
           </div>
 
           <div className="meta-info">
+            {recommendations?.estimated_setup_time && (
             <div className="meta-item">
               <span className="meta-label">⏱️ Estimated Setup Time:</span>
               <span className="meta-value">
-                {
-                  data.optimization_analysis.recommendations
-                    .estimated_setup_time
-                }
+                {recommendations?.estimated_setup_time || 'N/A'}
               </span>
             </div>
+            )}
+            {optimizedWorkflow?.estimated_time_savings && (
             <div className="meta-item">
               <span className="meta-label">📊 Performance Gain:</span>
               <span className="meta-value">
-                {
-                  data.optimization_analysis.optimized_workflow
-                    .estimated_time_savings
-                }
+                {optimizedWorkflow?.estimated_time_savings || 'N/A'}
               </span>
             </div>
+            )}
+            {aiInsights?.model_used && (
             <div className="meta-item">
               <span className="meta-label">🤖 Model Used:</span>
               <span className="meta-value">
-                {data.optimization_analysis.ai_insights.model_used}
+                {aiInsights?.model_used || 'N/A'}
               </span>
             </div>
+            )}
           </div>
         </div>
+        )}
 
         {/* Error Message if any */}
-        {data.error_message && (
+        {data?.error_message && (
           <div className="deployment-section error-section">
             <h3 className="section-title">
               <span className="section-icon">⚠️</span>

@@ -99,7 +99,8 @@ class DeployAgent:
         """
         Get deployment steps based on repository and strategy
         """
-        language = repo_info.get("language", "").lower()
+        language_value = repo_info.get("language")
+        language = language_value.lower() if language_value else ""
 
         base_steps = [
             {

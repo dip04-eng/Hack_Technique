@@ -116,83 +116,98 @@ export const saveWorkflowMetrics = async (
     const userMetricsRef = doc(db, "users", userId, "analytics", "aggregated");
     const userMetricsSnapshot = await getDoc(userMetricsRef);
 
+    // Helper function to safely get nested values with defaults
+    const safeGet = (obj: any, path: string, defaultValue: any = 0) => {
+      const keys = path.split('.');
+      let result = obj;
+      for (const key of keys) {
+        if (result === undefined || result === null) return defaultValue;
+        result = result[key];
+      }
+      return result ?? defaultValue;
+    };
+
+    // Extract values with safe defaults for both complex and simple data structures
+    const aiCompletions = safeGet(metricsData, 'ai_completion_metrics.total_ai_completions', 1);
+    const aiProcessingTime = safeGet(metricsData, 'ai_completion_metrics.ai_processing_time', 0);
+    const aiConfidenceScore = safeGet(metricsData, 'confidence_score', safeGet(metricsData, 'ai_completion_metrics.ai_confidence_score', 0));
+    const aiSuggestionsApplied = safeGet(metricsData, 'ai_completion_metrics.ai_suggestions_applied', 0);
+    
+    const filesOptimized = safeGet(metricsData, 'code_optimization_metrics.files_optimized', 0);
+    const linesImproved = safeGet(metricsData, 'code_optimization_metrics.lines_of_code_improved', 0);
+    const performanceImprovement = safeGet(metricsData, 'code_optimization_metrics.performance_improvement_percent', 0);
+    const complexityReduction = safeGet(metricsData, 'code_optimization_metrics.complexity_reduction_percent', 0);
+    const securityIssuesFixed = safeGet(metricsData, 'code_optimization_metrics.security_issues_fixed', 0);
+    const codeDuplicationReduced = safeGet(metricsData, 'code_optimization_metrics.code_duplication_reduced_percent', 0);
+    const testCoverageImprovement = safeGet(metricsData, 'code_optimization_metrics.test_coverage_improvement', 0);
+    const buildTimeReduction = safeGet(metricsData, 'code_optimization_metrics.build_time_reduction_percent', 0);
+    
+    const totalCO2Saved = safeGet(metricsData, 'carbon_savings_metrics.total_co2_saved_kg', 0);
+    const co2SavedBuild = safeGet(metricsData, 'carbon_savings_metrics.co2_saved_build_process', 0);
+    const co2SavedRuntime = safeGet(metricsData, 'carbon_savings_metrics.co2_saved_runtime', 0);
+    const co2SavedDevelopment = safeGet(metricsData, 'carbon_savings_metrics.co2_saved_development', 0);
+    const treesEquivalent = safeGet(metricsData, 'carbon_savings_metrics.trees_equivalent', 0);
+    const carMilesEquivalent = safeGet(metricsData, 'carbon_savings_metrics.car_miles_equivalent', 0);
+    const energySavedKwh = safeGet(metricsData, 'carbon_savings_metrics.energy_saved_kwh', 0);
+    const monthlySavingsEstimate = safeGet(metricsData, 'carbon_savings_metrics.monthly_savings_estimate', 0);
+    
+    const repoLanguage = safeGet(metricsData, 'repository_statistics.repo_language', safeGet(metricsData, 'repo_language', 'unknown'));
+    const optimizationType = safeGet(metricsData, 'session_information.optimization_type', safeGet(metricsData, 'optimization_type', 'workflow'));
+    const optimizationTimestamp = safeGet(metricsData, 'session_information.optimization_timestamp', safeGet(metricsData, 'timestamp', new Date().toISOString()));
+
     if (!userMetricsSnapshot.exists()) {
       // Create initial aggregated metrics
       const initialMetrics: AggregatedMetrics = {
         // AI Metrics
-        totalAICompletions:
-          metricsData.ai_completion_metrics.total_ai_completions,
-        totalAIProcessingTime:
-          metricsData.ai_completion_metrics.ai_processing_time,
-        averageAIConfidenceScore:
-          metricsData.ai_completion_metrics.ai_confidence_score,
-        totalAISuggestionsApplied:
-          metricsData.ai_completion_metrics.ai_suggestions_applied,
+        totalAICompletions: aiCompletions,
+        totalAIProcessingTime: aiProcessingTime,
+        averageAIConfidenceScore: aiConfidenceScore,
+        totalAISuggestionsApplied: aiSuggestionsApplied,
 
         // Code Optimization
-        totalFilesOptimized:
-          metricsData.code_optimization_metrics.files_optimized,
-        totalLinesImproved:
-          metricsData.code_optimization_metrics.lines_of_code_improved,
-        averagePerformanceImprovement:
-          metricsData.code_optimization_metrics.performance_improvement_percent,
-        averageComplexityReduction:
-          metricsData.code_optimization_metrics.complexity_reduction_percent,
-        totalSecurityIssuesFixed:
-          metricsData.code_optimization_metrics.security_issues_fixed,
-        averageCodeDuplicationReduced:
-          metricsData.code_optimization_metrics
-            .code_duplication_reduced_percent,
-        averageTestCoverageImprovement:
-          metricsData.code_optimization_metrics.test_coverage_improvement,
-        averageBuildTimeReduction:
-          metricsData.code_optimization_metrics.build_time_reduction_percent,
+        totalFilesOptimized: filesOptimized,
+        totalLinesImproved: linesImproved,
+        averagePerformanceImprovement: performanceImprovement,
+        averageComplexityReduction: complexityReduction,
+        totalSecurityIssuesFixed: securityIssuesFixed,
+        averageCodeDuplicationReduced: codeDuplicationReduced,
+        averageTestCoverageImprovement: testCoverageImprovement,
+        averageBuildTimeReduction: buildTimeReduction,
 
         // Carbon Savings
-        totalCO2SavedKg: metricsData.carbon_savings_metrics.total_co2_saved_kg,
-        totalCO2SavedBuild:
-          metricsData.carbon_savings_metrics.co2_saved_build_process,
-        totalCO2SavedRuntime:
-          metricsData.carbon_savings_metrics.co2_saved_runtime,
-        totalCO2SavedDevelopment:
-          metricsData.carbon_savings_metrics.co2_saved_development,
-        totalTreesEquivalent:
-          metricsData.carbon_savings_metrics.trees_equivalent,
-        totalCarMilesEquivalent:
-          metricsData.carbon_savings_metrics.car_miles_equivalent,
-        totalEnergySavedKwh:
-          metricsData.carbon_savings_metrics.energy_saved_kwh,
-        totalMonthlySavingsEstimate:
-          metricsData.carbon_savings_metrics.monthly_savings_estimate,
+        totalCO2SavedKg: totalCO2Saved,
+        totalCO2SavedBuild: co2SavedBuild,
+        totalCO2SavedRuntime: co2SavedRuntime,
+        totalCO2SavedDevelopment: co2SavedDevelopment,
+        totalTreesEquivalent: treesEquivalent,
+        totalCarMilesEquivalent: carMilesEquivalent,
+        totalEnergySavedKwh: energySavedKwh,
+        totalMonthlySavingsEstimate: monthlySavingsEstimate,
 
         // Repository Stats
         totalOptimizations: 1,
         repositoriesOptimized: 1,
-        languagesOptimized: [metricsData.repository_statistics.repo_language],
+        languagesOptimized: repoLanguage ? [repoLanguage] : [],
 
         // Session Info
-        lastOptimization:
-          metricsData.session_information.optimization_timestamp,
-        firstOptimization:
-          metricsData.session_information.optimization_timestamp,
-        optimizationTypes: [metricsData.session_information.optimization_type],
+        lastOptimization: optimizationTimestamp,
+        firstOptimization: optimizationTimestamp,
+        optimizationTypes: optimizationType ? [optimizationType] : [],
 
         // Time-based data
         dailyOptimizations: [
           {
             date: new Date().toISOString().split("T")[0],
             count: 1,
-            co2Saved: metricsData.carbon_savings_metrics.total_co2_saved_kg,
+            co2Saved: totalCO2Saved,
           },
         ],
         monthlyMetrics: [
           {
             month: new Date().toISOString().slice(0, 7), // YYYY-MM
             optimizations: 1,
-            performance:
-              metricsData.code_optimization_metrics
-                .performance_improvement_percent,
-            co2Saved: metricsData.carbon_savings_metrics.total_co2_saved_kg,
+            performance: performanceImprovement,
+            co2Saved: totalCO2Saved,
           },
         ],
       };
@@ -214,13 +229,12 @@ export const saveWorkflowMetrics = async (
 
       if (todayIndex >= 0) {
         dailyOptimizations[todayIndex].count += 1;
-        dailyOptimizations[todayIndex].co2Saved +=
-          metricsData.carbon_savings_metrics.total_co2_saved_kg;
+        dailyOptimizations[todayIndex].co2Saved += totalCO2Saved;
       } else {
         dailyOptimizations.push({
           date: today,
           count: 1,
-          co2Saved: metricsData.carbon_savings_metrics.total_co2_saved_kg,
+          co2Saved: totalCO2Saved,
         });
       }
 
@@ -232,46 +246,28 @@ export const saveWorkflowMetrics = async (
 
       if (monthIndex >= 0) {
         monthlyMetrics[monthIndex].optimizations += 1;
-        monthlyMetrics[monthIndex].co2Saved +=
-          metricsData.carbon_savings_metrics.total_co2_saved_kg;
+        monthlyMetrics[monthIndex].co2Saved += totalCO2Saved;
         monthlyMetrics[monthIndex].performance =
-          (monthlyMetrics[monthIndex].performance +
-            metricsData.code_optimization_metrics
-              .performance_improvement_percent) /
-          2;
+          (monthlyMetrics[monthIndex].performance + performanceImprovement) / 2;
       } else {
         monthlyMetrics.push({
           month: currentMonth,
           optimizations: 1,
-          performance:
-            metricsData.code_optimization_metrics
-              .performance_improvement_percent,
-          co2Saved: metricsData.carbon_savings_metrics.total_co2_saved_kg,
+          performance: performanceImprovement,
+          co2Saved: totalCO2Saved,
         });
       }
 
       // Update languages optimized
       const languagesOptimized = existingData.languagesOptimized || [];
-      if (
-        !languagesOptimized.includes(
-          metricsData.repository_statistics.repo_language
-        )
-      ) {
-        languagesOptimized.push(
-          metricsData.repository_statistics.repo_language
-        );
+      if (repoLanguage && !languagesOptimized.includes(repoLanguage)) {
+        languagesOptimized.push(repoLanguage);
       }
 
       // Update optimization types
       const optimizationTypes = existingData.optimizationTypes || [];
-      if (
-        !optimizationTypes.includes(
-          metricsData.session_information.optimization_type
-        )
-      ) {
-        optimizationTypes.push(
-          metricsData.session_information.optimization_type
-        );
+      if (optimizationType && !optimizationTypes.includes(optimizationType)) {
+        optimizationTypes.push(optimizationType);
       }
 
       // Calculate new averages
@@ -279,59 +275,30 @@ export const saveWorkflowMetrics = async (
       const newAverageAIConfidence =
         (existingData.averageAIConfidenceScore *
           existingData.totalOptimizations +
-          metricsData.ai_completion_metrics.ai_confidence_score) /
+          aiConfidenceScore) /
         totalOptimizations;
 
       const updateData = {
         // Increment counters
-        totalAICompletions: increment(
-          metricsData.ai_completion_metrics.total_ai_completions
-        ),
-        totalAIProcessingTime: increment(
-          metricsData.ai_completion_metrics.ai_processing_time
-        ),
-        totalAISuggestionsApplied: increment(
-          metricsData.ai_completion_metrics.ai_suggestions_applied
-        ),
-        totalFilesOptimized: increment(
-          metricsData.code_optimization_metrics.files_optimized
-        ),
-        totalLinesImproved: increment(
-          metricsData.code_optimization_metrics.lines_of_code_improved
-        ),
-        totalSecurityIssuesFixed: increment(
-          metricsData.code_optimization_metrics.security_issues_fixed
-        ),
-        totalCO2SavedKg: increment(
-          metricsData.carbon_savings_metrics.total_co2_saved_kg
-        ),
-        totalCO2SavedBuild: increment(
-          metricsData.carbon_savings_metrics.co2_saved_build_process
-        ),
-        totalCO2SavedRuntime: increment(
-          metricsData.carbon_savings_metrics.co2_saved_runtime
-        ),
-        totalCO2SavedDevelopment: increment(
-          metricsData.carbon_savings_metrics.co2_saved_development
-        ),
-        totalTreesEquivalent: increment(
-          metricsData.carbon_savings_metrics.trees_equivalent
-        ),
-        totalCarMilesEquivalent: increment(
-          metricsData.carbon_savings_metrics.car_miles_equivalent
-        ),
-        totalEnergySavedKwh: increment(
-          metricsData.carbon_savings_metrics.energy_saved_kwh
-        ),
-        totalMonthlySavingsEstimate: increment(
-          metricsData.carbon_savings_metrics.monthly_savings_estimate
-        ),
+        totalAICompletions: increment(aiCompletions),
+        totalAIProcessingTime: increment(aiProcessingTime),
+        totalAISuggestionsApplied: increment(aiSuggestionsApplied),
+        totalFilesOptimized: increment(filesOptimized),
+        totalLinesImproved: increment(linesImproved),
+        totalSecurityIssuesFixed: increment(securityIssuesFixed),
+        totalCO2SavedKg: increment(totalCO2Saved),
+        totalCO2SavedBuild: increment(co2SavedBuild),
+        totalCO2SavedRuntime: increment(co2SavedRuntime),
+        totalCO2SavedDevelopment: increment(co2SavedDevelopment),
+        totalTreesEquivalent: increment(treesEquivalent),
+        totalCarMilesEquivalent: increment(carMilesEquivalent),
+        totalEnergySavedKwh: increment(energySavedKwh),
+        totalMonthlySavingsEstimate: increment(monthlySavingsEstimate),
         totalOptimizations: increment(1),
 
         // Update averages and other fields
         averageAIConfidenceScore: newAverageAIConfidence,
-        lastOptimization:
-          metricsData.session_information.optimization_timestamp,
+        lastOptimization: optimizationTimestamp,
         languagesOptimized,
         optimizationTypes,
         dailyOptimizations,

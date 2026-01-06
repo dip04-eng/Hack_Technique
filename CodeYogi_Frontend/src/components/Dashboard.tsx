@@ -21,6 +21,8 @@ import { SettingsPanel } from "./SettingsPanel";
 import { UserProfile } from "./UserProfile";
 import { RepoMonitoring } from "./RepoMonitoring";
 import { DeployFailureAnalysis } from "./DeployFailureAnalysis";
+import RollbackIntelligence from "./RollbackIntelligence";
+import { useSelectedRepository } from "../hooks/useSelectedRepository";
 
 type PanelType =
   | "chat"
@@ -30,11 +32,13 @@ type PanelType =
   | "settings"
   | "profile"
   | "monitoring"
-  | "failure-analysis";
+  | "failure-analysis"
+  | "rollback-intelligence";
 
 export const Dashboard: React.FC = () => {
   const [activePanel, setActivePanel] = useState<PanelType>("chat");
   const [isConsoleActive, setIsConsoleActive] = useState(false);
+  const { selectedRepo } = useSelectedRepository();
 
   const navItems = [
     {
@@ -55,13 +59,12 @@ export const Dashboard: React.FC = () => {
       label: "Projects",
       color: "from-emerald-400 to-green-500",
     },
-    // Hidden for now - can be re-enabled later
-    // {
-    //   id: "monitoring",
-    //   icon: Monitor,
-    //   label: "Repo Monitor",
-    //   color: "from-blue-400 to-cyan-500",
-    // },
+    {
+      id: "monitoring",
+      icon: Monitor,
+      label: "Repo Monitor",
+      color: "from-blue-400 to-cyan-500",
+    },
     {
       id: "analytics",
       icon: BarChart3,
@@ -100,10 +103,8 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleRollbackClick = () => {
-    // When Rollback Intelligence is clicked, switch to chat and trigger rollback
-    setActivePanel("chat");
-    // Dispatch a custom event that ChatInterface can listen to
-    window.dispatchEvent(new CustomEvent('trigger-rollback'));
+    // Open Rollback Intelligence as a separate panel
+    setActivePanel("rollback-intelligence");
   };
 
   return (
@@ -201,6 +202,13 @@ export const Dashboard: React.FC = () => {
               {activePanel === "profile" && <UserProfile />}
               {activePanel === "monitoring" && <RepoMonitoring />}
               {activePanel === "failure-analysis" && <DeployFailureAnalysis />}
+              {activePanel === "rollback-intelligence" && (
+                <RollbackIntelligence
+                  repoOwner={selectedRepo?.owner?.login || ""}
+                  repoName={selectedRepo?.name || ""}
+                  branch={selectedRepo?.default_branch || "main"}
+                />
+              )}
             </motion.div>
           </AnimatePresence>
         </div>

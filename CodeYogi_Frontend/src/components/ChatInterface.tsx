@@ -1515,6 +1515,7 @@ export const ChatInterface: React.FC = () => {
             whileTap={{ scale: 0.95 }}
             onClick={handleSendMessage}
             disabled={!inputValue.trim()}
+            data-send-button
             className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-4 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5 text-white" />
@@ -1614,13 +1615,20 @@ export const ChatInterface: React.FC = () => {
             // Hidden for now - can be re-enabled later
             // "Generate README PR",
             "Optimize SEO",
-            "Rollback Intelligence",
           ].map((action) => (
             <motion.button
               key={action}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setInputValue(action)}
+              data-action={action}
+              onClick={() => {
+                setInputValue(action);
+                // Trigger the send after a short delay to allow state to update
+                setTimeout(() => {
+                  const sendButton = document.querySelector<HTMLButtonElement>('[data-send-button]');
+                  if (sendButton) sendButton.click();
+                }, 50);
+              }}
               className="px-4 py-2 bg-gray-800/50 border border-slate-600/30 rounded-lg text-sm text-gray-300 hover:text-white hover:border-slate-500/50 transition-all duration-300"
             >
               {action}
