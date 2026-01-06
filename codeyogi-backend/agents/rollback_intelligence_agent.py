@@ -414,11 +414,26 @@ This commit reverts changes made after {target_commit['timestamp_readable']}
 """
                 
                 try:
-                    # Get the base branch reference
-                    base_ref = repo.get_git_ref(f"heads/{branch}")
+                    # Create new branch from target commit using a more reliable method
+                    # First, get the target commit object
+                    target_commit_obj = repo.get_commit(target_sha)
                     
-                    # Create new branch from target commit
-                    new_ref = repo.create_git_ref(f"refs/heads/{rollback_branch}", target_sha)
+                    # Create the branch reference pointing to the target commit
+                    try:
+                        new_ref = repo.create_git_ref(
+                            ref=f"refs/heads/{rollback_branch}",
+                            sha=target_commit_obj.sha
+                        )
+                    except Exception as ref_error:
+                        # If direct ref creation fails, try alternative method
+                        # Get the base branch
+                        base_branch_obj = repo.get_branch(branch)
+                        
+                        # Create branch using the Repository.create_git_ref with full path
+                        new_ref = repo.create_git_ref(
+                            ref=f"refs/heads/{rollback_branch}",
+                            sha=target_commit_obj.sha
+                        )
                     
                     # Create Pull Request
                     pr = repo.create_pull(
@@ -472,30 +487,45 @@ git push origin {branch}
                         ]
                     }
                 except Exception as pr_error:
-                    # If PR creation fails, return instructions instead
+                    # If PR creation fails, try creating a comparison-based revert PR
+                    error_msg = str(pr_error)
+                    
+                    # Alternative approach: Create instructions for manual PR with comparison link
+                    comparison_url = f"https://github.com/{repo_owner}/{repo_name}/compare/{target_commit['short_sha']}...{branch}"
+                    pr_url = f"https://github.com/{repo_owner}/{repo_name}/compare/{branch}...{target_commit['short_sha']}?expand=1&title=Rollback%20to%20commit%20%23{rollback_number}&body=Rollback%20via%20CodeYogi"
+                    
                     return {
                         "success": True,
-                        "execution_method": "instructions",
+                        "execution_method": "manual_pr",
                         "target_commit": target_commit,
                         "current_commit": candidates[0],
                         "rollback_number": rollback_number,
-                        "message": f"PR creation failed: {str(pr_error)}. Using instruction method instead.",
+                        "message": f"Automatic PR creation encountered an issue. Please create the PR manually.",
+                        "manual_pr_link": pr_url,
+                        "comparison_link": comparison_url,
                         "git_instructions": {
                             "commands": [
+                                f"# Option 1: Via GitHub Web Interface",
+                                f"# Click the 'Create PR' button below",
+                                f"",
+                                f"# Option 2: Via Git Commands",
+                                f"git fetch origin",
                                 f"git checkout {branch}",
                                 f"git checkout -b {rollback_branch}",
                                 f"git reset --hard {target_sha}",
-                                f"git push origin {rollback_branch}",
-                                f"# Then create a PR from {rollback_branch} to {branch}"
+                                f"git push -f origin {rollback_branch}",
+                                f"# Then create PR: {pr_url}"
                             ],
-                            "description": "Execute these commands to complete rollback manually"
+                            "description": "Choose one of the methods below to create the rollback PR"
                         },
                         "next_steps": [
-                            "⚠️ Automatic PR creation failed",
-                            "📋 Follow the git instructions above",
-                            "🔀 Create a Pull Request manually on GitHub"
+                            "⚠️ Automatic PR creation failed due to API limitations",
+                            f"🔗 Click 'Create PR Manually' button below",
+                            "📝 Review and submit the PR on GitHub",
+                            "✅ Merge when ready"
                         ],
-                        "error_details": str(pr_error)
+                        "error_details": error_msg,
+                        "repository_url": f"https://github.com/{repo_owner}/{repo_name}"
                     }
             else:
                 # Return rollback plan without execution

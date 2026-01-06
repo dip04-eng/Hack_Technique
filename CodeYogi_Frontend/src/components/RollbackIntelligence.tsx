@@ -533,6 +533,46 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
                     </p>
                   </div>
                 )}
+                
+                {/* Manual PR Creation Link */}
+                {executionResult.success && executionResult.manual_pr_link && (
+                  <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-2 border-yellow-500/50 rounded-xl p-4 mb-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                        <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                      </div>
+                      <div>
+                        <p className="text-white font-semibold">Manual PR Creation Required</p>
+                        <p className="text-sm text-gray-400">Automatic creation failed - click below to create PR</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <a
+                        href={executionResult.manual_pr_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full px-4 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white rounded-lg font-medium text-center transition-all hover:shadow-lg hover:shadow-yellow-500/30 flex items-center justify-center gap-2"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Create Pull Request on GitHub
+                      </a>
+                      {executionResult.comparison_link && (
+                        <a
+                          href={executionResult.comparison_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium text-center transition-all flex items-center justify-center gap-2"
+                        >
+                          <GitCommit className="w-4 h-4" />
+                          View Changes Comparison
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-3 text-center">
+                      Click the button to open GitHub with pre-filled PR details
+                    </p>
+                  </div>
+                )}
 
                 {executionResult.success && executionResult.next_steps && (
                   <div className="space-y-2">
