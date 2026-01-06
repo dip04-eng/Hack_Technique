@@ -13,6 +13,8 @@ import {
   RefreshCw,
   Info,
   XCircle,
+  GitBranch,
+  ExternalLink,
 } from 'lucide-react';
 
 interface RollbackCandidate {
@@ -78,7 +80,11 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
     setError(null);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch('http://localhost:8000/api/rollback/candidates', {
+        signal: controller.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -89,6 +95,8 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
         }),
       });
 
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
         throw new Error('Failed to fetch rollback candidates');
       }
@@ -143,7 +151,11 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
     setShowConfirmation(false);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for execution
+      
       const response = await fetch('http://localhost:8000/api/rollback/execute', {
+        signal: controller.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -155,12 +167,21 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
         }),
       });
 
+      clearTimeout(timeoutId);
+      
       const data = await response.json();
       setExecutionResult(data);
     } catch (err: any) {
+      let errorMessage = 'Rollback execution failed';
+      if (err.name === 'AbortError') {
+        errorMessage = 'Request timeout - the operation took too long. Please check your GitHub repository for any changes.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setExecutionResult({
         success: false,
-        error: err.message || 'Rollback execution failed',
+        error: errorMessage,
       });
     } finally {
       setExecuting(false);
@@ -482,6 +503,33 @@ const RollbackIntelligence: React.FC<RollbackIntelligenceProps> = ({
                     <p className="text-sm text-gray-400 mb-2">Target Commit:</p>
                     <p className="text-white font-mono">
                       {executionResult.target_commit.short_sha} - {executionResult.target_commit.message}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Pull Request Link - Most Important! */}
+                {executionResult.success && executionResult.pull_request && (
+                  <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-2 border-blue-500/50 rounded-xl p-4 mb-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                        <GitBranch className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-white font-semibold">Pull Request Created!</p>
+                        <p className="text-sm text-gray-400">PR #{executionResult.pull_request.number}</p>
+                      </div>
+                    </div>
+                    <a
+                      href={executionResult.pull_request.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-center transition-all hover:shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      View Pull Request on GitHub
+                    </a>
+                    <p className="text-xs text-gray-400 mt-3 text-center">
+                      Review and merge the PR to complete the rollback
                     </p>
                   </div>
                 )}
