@@ -267,14 +267,17 @@ export const ChatInterface: React.FC = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             github_url: selectedRepo.html_url,
-            github_token: "", // Token would need to be provided by the user or stored securely
-            branch_name: "",
+            github_token: localStorage.getItem("github_token") || "", // Get token from localStorage
+            branch_name: "seo-optimization",
             create_pr: true,
             auto_merge: false,
           }),
         });
 
-        if (!response.ok) throw new Error("Failed to optimize SEO");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error_message || errorData.detail || "Failed to optimize SEO");
+        }
 
         const data: SEOOptimization = await response.json();
 
@@ -1179,8 +1182,8 @@ export const ChatInterface: React.FC = () => {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
                         github_url: selectedRepo.html_url,
-                        github_token: "",
-                        branch_name: "",
+                        github_token: localStorage.getItem("github_token") || "",
+                        branch_name: "seo-optimization",
                         create_pr: true,
                         auto_merge: false,
                       }),
