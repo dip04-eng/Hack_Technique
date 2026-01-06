@@ -423,26 +423,32 @@ This commit reverts changes made after {target_commit['timestamp_readable']}
 """
                 
                 try:
-                    # Create new branch from target commit using a more reliable method
-                    # First, get the target commit object
-                    target_commit_obj = repo.get_commit(target_sha)
+                    # Use PyGithub's API to create a proper revert
+                    # Get the current HEAD of the base branch
+                    base_branch_obj = repo.get_branch(branch)
+                    base_sha = base_branch_obj.commit.sha
                     
-                    # Create the branch reference pointing to the target commit
-                    try:
-                        new_ref = repo.create_git_ref(
-                            ref=f"refs/heads/{rollback_branch}",
-                            sha=target_commit_obj.sha
-                        )
-                    except Exception as ref_error:
-                        # If direct ref creation fails, try alternative method
-                        # Get the base branch
-                        base_branch_obj = repo.get_branch(branch)
-                        
-                        # Create branch using the Repository.create_git_ref with full path
-                        new_ref = repo.create_git_ref(
-                            ref=f"refs/heads/{rollback_branch}",
-                            sha=target_commit_obj.sha
-                        )
+                    # Create new branch from current HEAD (not from target commit)
+                    new_ref = repo.create_git_ref(
+                        ref=f"refs/heads/{rollback_branch}",
+                        sha=base_sha  # Start from current HEAD
+                    )
+                    
+                    # Get the tree of the target commit (what we want to revert to)
+                    target_tree = repo.get_commit(target_sha).commit.tree
+                    
+                    # Create a new commit on the rollback branch with the target tree
+                    # This effectively "reverts" to the target state
+                    new_commit = repo.create_git_commit(
+                        message=rollback_msg,
+                        tree=target_tree,
+                        parents=[repo.get_git_commit(base_sha)]
+                    )
+                    
+                    # Update the branch reference to point to the new commit
+                    new_ref.edit(sha=new_commit.sha, force=True)
+                    
+                    print(f"[SUCCESS] Created rollback branch with revert commit")
                     
                     # Create Pull Request
                     pr = repo.create_pull(
@@ -459,9 +465,18 @@ This commit reverts changes made after {target_commit['timestamp_readable']}
 - **Additions:** +{target_commit['additions']}
 - **Deletions:** -{target_commit['deletions']}
 
+### What This PR Does
+This PR reverts the codebase to the state of commit `{target_commit['short_sha']}`, effectively undoing all changes made after that point.
+
+### How to Complete the Rollback
+1. ✅ Review the changes in the "Files changed" tab
+2. ✅ Merge this PR to apply the rollback
+3. 🚀 Your deployment will automatically use the reverted code
+
 ### Git Instructions (if you want to do it manually)
 ```bash
-git revert --no-commit {current_sha}^..{target_sha}
+git checkout {branch}
+git revert --no-commit {target_sha}..{base_sha}
 git commit -m "Rollback via CodeYogi"
 git push origin {branch}
 ```
@@ -496,8 +511,9 @@ git push origin {branch}
                         ]
                     }
                 except Exception as pr_error:
-                    # If PR creation fails, try creating a comparison-based revert PR
+                    # If PR creation fails, log the error and return details
                     error_msg = str(pr_error)
+                    print(f"[ERROR] Failed to create PR: {error_msg}")
                     
                     # Alternative approach: Create instructions for manual PR with comparison link
                     comparison_url = f"https://github.com/{repo_owner}/{repo_name}/compare/{target_commit['short_sha']}...{branch}"

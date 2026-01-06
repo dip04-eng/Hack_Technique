@@ -664,14 +664,22 @@ async def optimize_repository_seo(request: SEOOptimizationRequest):
     try:
         from datetime import datetime
         import asyncio
+        from agents.seo_injector_api import optimize_seo_via_api
 
-        # Run the full SEO optimization
-        result = await seo_injector.optimize_github_repository_seo(
+        # Use provided token or fallback to environment token
+        github_token = request.github_token or os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+        
+        if not github_token:
+            raise HTTPException(
+                status_code=400,
+                detail="GitHub token is required. Please configure GITHUB_TOKEN in .env file."
+            )
+
+        # Use API-based optimization (no git clone needed)
+        result = optimize_seo_via_api(
             github_url=str(request.github_url),
-            github_token=request.github_token,
+            github_token=github_token,
             branch_name=request.branch_name,
-            create_pr=request.create_pr,
-            auto_merge=request.auto_merge,
         )
 
         if result.get("success"):
