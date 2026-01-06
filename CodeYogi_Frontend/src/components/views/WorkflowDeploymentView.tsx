@@ -28,7 +28,9 @@ const WorkflowDeploymentView: React.FC<{
     const saveMetrics = async () => {
       if (user && prInfo?.success && !metricsSaved) {
         try {
-          console.log("Saving workflow metrics to Firebase...");
+          console.log("=== WorkflowDeploymentView: Starting metrics save ===");
+          console.log("User ID:", user.uid);
+          console.log("PR Info:", prInfo);
           
           // Build a complete metrics object from available data
           const metricsToSave = {
@@ -56,9 +58,10 @@ const WorkflowDeploymentView: React.FC<{
             timestamp: new Date().toISOString(),
           };
           
+          console.log("Metrics to save:", metricsToSave);
           await saveWorkflowMetrics(user.uid, metricsToSave);
           setMetricsSaved(true);
-          console.log("Workflow metrics saved successfully");
+          console.log("=== Workflow metrics saved successfully ===");
 
           // Show success notification when PR is created
           addNotification({
@@ -68,15 +71,11 @@ const WorkflowDeploymentView: React.FC<{
             duration: 5000,
           });
         } catch (error) {
-          console.error("Failed to save workflow metrics:", error);
-
-          // Show error notification if saving fails
-          addNotification({
-            type: "error",
-            title: "Failed to Save Metrics",
-            message: "Could not save optimization metrics to database.",
-            duration: 5000,
-          });
+          console.error("=== Failed to save workflow metrics ===");
+          console.error("Error type:", error?.constructor?.name);
+          console.error("Error message:", error?.message);
+          console.error("Full error:", error);
+          // Error notification removed - silently fail
         }
       }
     };

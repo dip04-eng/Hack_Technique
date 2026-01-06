@@ -104,13 +104,24 @@ export const saveWorkflowMetrics = async (
   metricsData: any
 ): Promise<void> => {
   try {
+    console.log("=== saveWorkflowMetrics called ===");
+    console.log("userId:", userId);
+    console.log("metricsData:", metricsData);
+    
+    // Validate userId
+    if (!userId) {
+      throw new Error("userId is required");
+    }
+    
     // Save individual session data
+    console.log("Attempting to save session data...");
     const sessionRef = collection(db, "users", userId, "optimization_sessions");
-    await addDoc(sessionRef, {
+    const sessionDoc = await addDoc(sessionRef, {
       ...metricsData,
       timestamp: serverTimestamp(),
       createdAt: serverTimestamp(),
     });
+    console.log("Session data saved successfully:", sessionDoc.id);
 
     // Update aggregated metrics
     const userMetricsRef = doc(db, "users", userId, "analytics", "aggregated");
@@ -311,7 +322,10 @@ export const saveWorkflowMetrics = async (
 
     console.log("Workflow metrics saved successfully");
   } catch (error) {
-    console.error("Error saving workflow metrics:", error);
+    console.error("=== Error saving workflow metrics ===");
+    console.error("Error type:", error?.constructor?.name);
+    console.error("Error message:", error?.message);
+    console.error("Full error:", error);
     throw error;
   }
 };

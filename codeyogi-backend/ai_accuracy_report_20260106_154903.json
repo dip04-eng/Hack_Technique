@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-01-06T15:49:03.322099",
+  "metrics": {
+    "groq": {
+      "total_requests": 3,
+      "successful_requests": 3,
+      "failed_requests": 0,
+      "total_response_time": 3.4354259967803955,
+      "response_times": [
+        0.5581526756286621,
+        1.149427890777588,
+        1.7278454303741455
+      ],
+      "model_used": "llama-3.3-70b-versatile",
+      "features_tested": [
+        "code_analysis",
+        "workflow_optimization"
+      ]
+    },
+    "gemini": {
+      "total_requests": 1,
+      "successful_requests": 0,
+      "failed_requests": 1,
+      "total_response_time": 0,
+      "response_times": [],
+      "model_used": "gemini-1.5-flash",
+      "features_tested": []
+    }
+  },
+  "summary": {
+    "groq": {
+      "accuracy": "100.00%",
+      "avg_response_time": "1.15s",
+      "total_requests": 3
+    },
+    "gemini": {
+      "accuracy": "0.00%",
+      "avg_response_time": "0.00s",
+      "total_requests": 1
+    }
+  }
+}
