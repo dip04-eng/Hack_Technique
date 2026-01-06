@@ -625,13 +625,14 @@ Built with ❤️ by the community
     return readme_content
 
 
-def commit_and_push_changes(repo_path: str, branch_name: str) -> bool:
+def commit_and_push_changes(repo_path: str, branch_name: str, github_token: Optional[str] = None) -> bool:
     """
     Commit and push changes to a new branch
 
     Args:
         repo_path: Path to the repository
         branch_name: Name of the new branch
+        github_token: GitHub personal access token for authentication
 
     Returns:
         True if successful, False otherwise
@@ -641,30 +642,92 @@ def commit_and_push_changes(repo_path: str, branch_name: str) -> bool:
         original_cwd = os.getcwd()
         os.chdir(repo_path)
 
+        # Configure git user if not set
+        try:
+            subprocess.run(
+                ["git", "config", "user.name", "CodeYogi Bot"],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            subprocess.run(
+                ["git", "config", "user.email", "codeyogi@bot.local"],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+        except:
+            pass  # User might already be configured
+
+        # Get the current remote URL
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        remote_url = result.stdout.strip()
+
+        # If we have a token and the URL is HTTPS, inject the token
+        if github_token and "https://github.com" in remote_url:
+            # Replace https://github.com with https://TOKEN@github.com
+            authenticated_url = remote_url.replace(
+                "https://github.com",
+                f"https://{github_token}@github.com"
+            )
+            subprocess.run(
+                ["git", "remote", "set-url", "origin", authenticated_url],
+                check=True,
+                capture_output=True
+            )
+
         # Create and checkout new branch
         subprocess.run(
-            ["git", "checkout", "-b", branch_name], check=True, capture_output=True
+            ["git", "checkout", "-b", branch_name], check=True, capture_output=True, text=True
         )
 
         # Add all changes
-        subprocess.run(["git", "add", "."], check=True, capture_output=True)
+        subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
+
+        # Check if there are changes to commit
+        status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        if not status.stdout.strip():
+            print("[INFO] No changes to commit")
+            return False
 
         # Commit changes
-        commit_message = f"feat: Add SEO optimization by GitHub SEO Optimizer\\n\\n- Enhanced HTML meta tags\\n- Updated README with SEO improvements\\n- Added Open Graph and Twitter Card support"
+        commit_message = f"feat: Add SEO optimization by CodeYogi\\n\\n- Enhanced HTML meta tags\\n- Updated README with SEO improvements\\n- Added Open Graph and Twitter Card support"
         subprocess.run(
-            ["git", "commit", "-m", commit_message], check=True, capture_output=True
+            ["git", "commit", "-m", commit_message], check=True, capture_output=True, text=True
         )
 
         # Push to origin
-        subprocess.run(
-            ["git", "push", "origin", branch_name], check=True, capture_output=True
+        push_result = subprocess.run(
+            ["git", "push", "-u", "origin", branch_name],
+            capture_output=True,
+            text=True
         )
+        
+        if push_result.returncode != 0:
+            print(f"[ERROR] Push failed: {push_result.stderr}")
+            return False
 
         print(f"[SUCCESS] Changes committed and pushed to branch: {branch_name}")
         return True
 
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] Git operation failed: {e}")
+        if hasattr(e, 'stderr') and e.stderr:
+            print(f"[ERROR] Details: {e.stderr}")
+        return False
+    except Exception as e:
+        print(f"[ERROR] Unexpected error: {e}")
         return False
     finally:
         os.chdir(original_cwd)
@@ -1018,8 +1081,11 @@ async def optimize_github_repository_seo(
         if not branch_name:
             branch_name = f"seo-optimization-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
+        # Use provided token or fallback to environment token
+        token = github_token or os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+
         # Commit and push changes
-        if commit_and_push_changes(repo_path, branch_name):
+        if commit_and_push_changes(repo_path, branch_name, token):
             pr_url = None
             pr_number = None
 
