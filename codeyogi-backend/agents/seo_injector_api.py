@@ -18,7 +18,7 @@ def optimize_seo_via_api(
     github_url: str,
     github_token: str,
     branch_name: Optional[str] = None,
-    model: str = "meta-llama/llama-4-scout-17b-16e-instruct",
+    model: str = "llama-3.3-70b-versatile",
 ) -> Dict[str, Any]:
     """
     Optimize repository SEO using GitHub API directly (no git clone)
