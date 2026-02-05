@@ -54,11 +54,7 @@ const ReadmeGeneratorView: React.FC<ReadmeGeneratorViewProps> = ({ data }) => {
   const [showReadmePreview, setShowReadmePreview] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
-  const copyToClipboard = async (text: string | null, label: string) => {
-    if (!text) {
-      console.warn("No text to copy");
-      return;
-    }
+  const copyToClipboard = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedText(label);
@@ -81,10 +77,7 @@ const ReadmeGeneratorView: React.FC<ReadmeGeneratorViewProps> = ({ data }) => {
   };
 
   // Convert markdown to basic HTML for preview
-  const markdownToHtml = (markdown: string | null) => {
-    if (!markdown) {
-      return '<p class="text-gray-500">No README content available</p>';
-    }
+  const markdownToHtml = (markdown: string) => {
     return markdown
       .replace(
         /^# (.*$)/gim,
@@ -145,23 +138,21 @@ const ReadmeGeneratorView: React.FC<ReadmeGeneratorViewProps> = ({ data }) => {
               README Generated Successfully
             </h3>
             <p className="text-gray-400 text-sm">
-              Pull Request created for {data.repository || "repository"}
+              Pull Request created for {data.repository}
             </p>
           </div>
         </div>
-        {data.pull_request_url && (
-          <motion.a
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            href={data.pull_request_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-black rounded-lg font-medium hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300"
-          >
-            <ExternalLink className="w-4 h-4" />
-            View PR #{data.pull_request_number}
-          </motion.a>
-        )}
+        <motion.a
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          href={data.pull_request_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-black rounded-lg font-medium hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300"
+        >
+          <ExternalLink className="w-4 h-4" />
+          View PR #{data.pull_request_number}
+        </motion.a>
       </motion.div>
 
       {/* Summary Cards */}
@@ -176,7 +167,7 @@ const ReadmeGeneratorView: React.FC<ReadmeGeneratorViewProps> = ({ data }) => {
             <GitBranch className="w-4 h-4 text-green-400" />
             <span className="text-green-400 font-semibold">Branch</span>
           </div>
-          <p className="text-white font-mono text-sm">{data.branch_name || "N/A"}</p>
+          <p className="text-white font-mono text-sm">{data.branch_name}</p>
           <button
             onClick={() => copyToClipboard(data.branch_name, "branch")}
             className="mt-2 text-xs text-gray-400 hover:text-green-400 flex items-center gap-1"
@@ -197,11 +188,11 @@ const ReadmeGeneratorView: React.FC<ReadmeGeneratorViewProps> = ({ data }) => {
             <span className="text-blue-400 font-semibold">Project Type</span>
           </div>
           <p className="text-white text-sm">
-            {data.analysis_summary?.project_type || "Unknown"}
+            {data.analysis_summary.project_type}
           </p>
           <p className="text-gray-400 text-xs mt-1">
-            {data.analysis_summary?.total_files || 0} files •{" "}
-            {formatFileSize(data.analysis_summary?.total_size || 0)}
+            {data.analysis_summary.total_files} files •{" "}
+            {formatFileSize(data.analysis_summary.total_size)}
           </p>
         </motion.div>
 
@@ -239,19 +230,15 @@ const ReadmeGeneratorView: React.FC<ReadmeGeneratorViewProps> = ({ data }) => {
               Languages
             </h5>
             <div className="flex flex-wrap gap-2">
-              {data.analysis_summary?.languages && Object.keys(data.analysis_summary.languages).length > 0 ? (
-                Object.entries(data.analysis_summary.languages).map(
-                  ([lang, count]) => (
-                    <span
-                      key={lang}
-                      className="px-2 py-1 bg-blue-600/20 text-blue-300 rounded-md text-xs border border-blue-500/30"
-                    >
-                      {lang} ({count})
-                    </span>
-                  )
+              {Object.entries(data.analysis_summary.languages).map(
+                ([lang, count]) => (
+                  <span
+                    key={lang}
+                    className="px-2 py-1 bg-blue-600/20 text-blue-300 rounded-md text-xs border border-blue-500/30"
+                  >
+                    {lang} ({count})
+                  </span>
                 )
-              ) : (
-                <span className="text-gray-500 text-xs">No languages detected</span>
               )}
             </div>
           </div>
@@ -261,18 +248,14 @@ const ReadmeGeneratorView: React.FC<ReadmeGeneratorViewProps> = ({ data }) => {
               Frameworks
             </h5>
             <div className="flex flex-wrap gap-2">
-              {data.analysis_summary?.frameworks && data.analysis_summary.frameworks.length > 0 ? (
-                data.analysis_summary.frameworks.map((framework) => (
-                  <span
-                    key={framework}
-                    className="px-2 py-1 bg-green-600/20 text-green-300 rounded-md text-xs border border-green-500/30"
-                  >
-                    {framework}
-                  </span>
-                ))
-              ) : (
-                <span className="text-gray-500 text-xs">No frameworks detected</span>
-              )}
+              {data.analysis_summary.frameworks.map((framework) => (
+                <span
+                  key={framework}
+                  className="px-2 py-1 bg-green-600/20 text-green-300 rounded-md text-xs border border-green-500/30"
+                >
+                  {framework}
+                </span>
+              ))}
             </div>
           </div>
         </div>
@@ -280,31 +263,31 @@ const ReadmeGeneratorView: React.FC<ReadmeGeneratorViewProps> = ({ data }) => {
         <div className="mt-4 flex items-center gap-4 text-sm">
           <div
             className={`flex items-center gap-1 ${
-              data.analysis_summary?.has_tests
+              data.analysis_summary.has_tests
                 ? "text-green-400"
                 : "text-gray-500"
             }`}
           >
             <CheckCircle className="w-4 h-4" />
-            Tests: {data.analysis_summary?.has_tests ? "Found" : "None"}
+            Tests: {data.analysis_summary.has_tests ? "Found" : "None"}
           </div>
           <div
             className={`flex items-center gap-1 ${
-              data.analysis_summary?.has_docs
+              data.analysis_summary.has_docs
                 ? "text-green-400"
                 : "text-gray-500"
             }`}
           >
             <FileText className="w-4 h-4" />
-            Docs: {data.analysis_summary?.has_docs ? "Found" : "None"}
+            Docs: {data.analysis_summary.has_docs ? "Found" : "None"}
           </div>
           <div
             className={`flex items-center gap-1 ${
-              data.analysis_summary?.has_ci ? "text-green-400" : "text-gray-500"
+              data.analysis_summary.has_ci ? "text-green-400" : "text-gray-500"
             }`}
           >
             <GitBranch className="w-4 h-4" />
-            CI/CD: {data.analysis_summary?.has_ci ? "Found" : "None"}
+            CI/CD: {data.analysis_summary.has_ci ? "Found" : "None"}
           </div>
         </div>
       </motion.div>

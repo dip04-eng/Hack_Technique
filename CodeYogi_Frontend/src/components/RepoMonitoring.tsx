@@ -19,10 +19,8 @@ import {
   Settings,
 } from "lucide-react";
 import { useMonitoring } from "../contexts/MonitoringContext";
-import { useSelectedRepository } from "../hooks/useSelectedRepository";
 
 export const RepoMonitoring: React.FC = () => {
-  const { selectedRepo } = useSelectedRepository();
   const {
     state,
     startMonitoring,
@@ -37,14 +35,6 @@ export const RepoMonitoring: React.FC = () => {
   );
   const [localGithubToken, setLocalGithubToken] = useState(state.githubToken);
   const [showGetStarted, setShowGetStarted] = useState(!state.isActive);
-
-  // Auto-fill repository URL when a repo is selected
-  useEffect(() => {
-    if (selectedRepo && selectedRepo.html_url) {
-      setLocalRepoUrl(selectedRepo.html_url);
-      console.log("Auto-filled repo URL:", selectedRepo.html_url);
-    }
-  }, [selectedRepo]);
 
   // Update local state when context state changes
   useEffect(() => {
@@ -188,17 +178,14 @@ export const RepoMonitoring: React.FC = () => {
               <input
                 type="text"
                 value={localRepoUrl}
-                onChange={(e) => setLocalRepoUrl(e.target.value)}
-                onBlur={handleConfigChange}
+                onChange={(e) => {
+                  setLocalRepoUrl(e.target.value);
+                  handleConfigChange();
+                }}
                 className="w-full px-3 py-2 bg-theme-primary border border-theme rounded-lg focus:ring-2 focus:ring-accent-theme focus:border-transparent"
-                placeholder={selectedRepo ? selectedRepo.html_url : "https://github.com/owner/repo"}
+                placeholder="https://github.com/owner/repo"
                 disabled={state.isActive}
               />
-              {selectedRepo && (
-                <p className="mt-1 text-xs text-green-400">
-                  ✓ Auto-filled from selected repository: {selectedRepo.name}
-                </p>
-              )}
             </div>
 
             <div>
@@ -208,8 +195,10 @@ export const RepoMonitoring: React.FC = () => {
               <input
                 type="text"
                 value={localLastKnownSha}
-                onChange={(e) => setLocalLastKnownSha(e.target.value)}
-                onBlur={handleConfigChange}
+                onChange={(e) => {
+                  setLocalLastKnownSha(e.target.value);
+                  handleConfigChange();
+                }}
                 className="w-full px-3 py-2 bg-theme-primary border border-theme rounded-lg focus:ring-2 focus:ring-accent-theme focus:border-transparent"
                 placeholder="Enter last commit SHA"
                 disabled={state.isActive}
@@ -223,8 +212,10 @@ export const RepoMonitoring: React.FC = () => {
               <input
                 type="password"
                 value={localGithubToken}
-                onChange={(e) => setLocalGithubToken(e.target.value)}
-                onBlur={handleConfigChange}
+                onChange={(e) => {
+                  setLocalGithubToken(e.target.value);
+                  handleConfigChange();
+                }}
                 className="w-full px-3 py-2 bg-theme-primary border border-theme rounded-lg focus:ring-2 focus:ring-accent-theme focus:border-transparent"
                 placeholder="Enter GitHub token"
                 disabled={state.isActive}

@@ -504,8 +504,7 @@ class RepoDescriptionAgent:
                 return project_type.replace("_", " ").title()
 
         # Fallback based on primary language
-        primary_lang_value = tech_stack.get("primary_language")
-        primary_lang = primary_lang_value.lower() if primary_lang_value else ""
+        primary_lang = tech_stack.get("primary_language", "").lower()
         if primary_lang == "python":
             return "Python Application"
         elif primary_lang in ["javascript", "typescript"]:

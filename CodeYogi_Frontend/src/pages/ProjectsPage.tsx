@@ -1,5 +1,6 @@
 import React from "react";
 import { Header } from "../components/Header";
+import { ProjectView } from "../components/ProjectView";
 
 export const ProjectsPage: React.FC = () => {
   const handleRunAgent = () => {
@@ -17,15 +18,8 @@ export const ProjectsPage: React.FC = () => {
       {/* Reusable Header */}
       <Header onRunAgent={handleRunAgent} onProfileClick={handleProfileClick} />
 
-      {/* Page Content */}
-      <div className="p-6">
-        <h1 className="text-3xl font-bold text-green-400 mb-6">Projects</h1>
-        <p className="text-gray-300">
-          This is a standalone projects page using the reusable Header
-          component. The header maintains the same repository selection state
-          across all routes.
-        </p>
-      </div>
+      {/* Projects View - Shows GitHub Repositories */}
+      <ProjectView />
     </div>
   );
 };

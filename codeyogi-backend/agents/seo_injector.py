@@ -25,34 +25,27 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 load_dotenv()
 
 # Configure the Groq client with the API key.
-groq_client = None
 try:
     groq_api_key = os.getenv("GROQ_API_KEY")
-    if groq_api_key:
-        groq_client = Groq(api_key=groq_api_key)
-    else:
-        print("[WARNING] GROQ_API_KEY not found in .env file. Some features may not work.")
+    if not groq_api_key:
+        raise ValueError("GROQ_API_KEY not found in .env file.")
+    groq_client = Groq(api_key=groq_api_key)
 except Exception as e:
-    print(f"[WARNING] Failed to configure Groq client: {e}")
+    print(f"[ERROR] Failed to configure Groq client: {e}")
     print("[INFO] Please make sure your .env file contains a valid GROQ_API_KEY.")
+    sys.exit(1)
 
 # Configure GitHub client
-github_client = None
 try:
     github_token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
-    if github_token:
-        github_client = Github(github_token)
-        try:
-            user = github_client.get_user()
-            print(f"[INFO] GitHub client configured for user: {user.login}")
-        except Exception as e:
-            print(f"[WARNING] GitHub token validation failed: {e}")
-            github_client = None
-    else:
-        print("[WARNING] GITHUB_TOKEN not found in .env file. GitHub features will be limited.")
+    if not github_token:
+        raise ValueError("GITHUB_TOKEN not found in .env file.")
+    github_client = Github(github_token)
+    print(f"[INFO] GitHub client configured for user: {github_client.get_user().login}")
 except Exception as e:
-    print(f"[WARNING] Failed to configure GitHub client: {e}")
+    print(f"[ERROR] Failed to configure GitHub client: {e}")
     print("[INFO] Please make sure your .env file contains a valid GITHUB_TOKEN.")
+    sys.exit(1)
 
 # --- Prompt Engineering ---
 
@@ -113,28 +106,21 @@ def parse_github_url(url: str) -> Dict[str, str]:
         )
 
 
-def clone_repository(repo_url: str, temp_dir: str, github_token: Optional[str] = None) -> str:
+def clone_repository(repo_url: str, temp_dir: str) -> str:
     """
     Clone a GitHub repository to a temporary directory
 
     Args:
         repo_url: GitHub repository URL
         temp_dir: Temporary directory path
-        github_token: GitHub token for authentication
 
     Returns:
         Path to the cloned repository
     """
     try:
-        # Use token for authentication if provided
-        clone_url = repo_url
-        if github_token and "https://github.com" in repo_url:
-            # Inject token into URL for authentication
-            clone_url = repo_url.replace("https://github.com", f"https://{github_token}@github.com")
-        
         print(f"[INFO] Cloning repository: {repo_url}")
         result = subprocess.run(
-            ["git", "clone", clone_url, temp_dir],
+            ["git", "clone", repo_url, temp_dir],
             capture_output=True,
             text=True,
             check=True,
@@ -632,14 +618,13 @@ Built with ❤️ by the community
     return readme_content
 
 
-def commit_and_push_changes(repo_path: str, branch_name: str, github_token: Optional[str] = None) -> bool:
+def commit_and_push_changes(repo_path: str, branch_name: str) -> bool:
     """
     Commit and push changes to a new branch
 
     Args:
         repo_path: Path to the repository
         branch_name: Name of the new branch
-        github_token: GitHub personal access token for authentication
 
     Returns:
         True if successful, False otherwise
@@ -648,102 +633,31 @@ def commit_and_push_changes(repo_path: str, branch_name: str, github_token: Opti
         # Change to repository directory
         original_cwd = os.getcwd()
         os.chdir(repo_path)
-        
-        print(f"[INFO] Working directory: {repo_path}")
-
-        # Configure git user if not set
-        try:
-            subprocess.run(
-                ["git", "config", "user.name", "CodeYogi Bot"],
-                check=True,
-                capture_output=True,
-                text=True
-            )
-            subprocess.run(
-                ["git", "config", "user.email", "codeyogi@bot.local"],
-                check=True,
-                capture_output=True,
-                text=True
-            )
-            print("[INFO] Git user configured")
-        except Exception as e:
-            print(f"[WARNING] Could not configure git user: {e}")
-
-        # Get the current remote URL
-        try:
-            result = subprocess.run(
-                ["git", "remote", "get-url", "origin"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            remote_url = result.stdout.strip()
-            print(f"[INFO] Current remote URL: {remote_url[:50]}...")  # Only show first 50 chars
-
-            # If we have a token and the URL is HTTPS, inject the token
-            if github_token and "https://github.com" in remote_url:
-                # Replace https://github.com with https://TOKEN@github.com
-                authenticated_url = remote_url.replace(
-                    "https://github.com",
-                    f"https://{github_token}@github.com"
-                )
-                subprocess.run(
-                    ["git", "remote", "set-url", "origin", authenticated_url],
-                    check=True,
-                    capture_output=True
-                )
-                print("[INFO] Remote URL updated with authentication")
-        except Exception as e:
-            print(f"[ERROR] Failed to update remote URL: {e}")
-            return False
 
         # Create and checkout new branch
         subprocess.run(
-            ["git", "checkout", "-b", branch_name], check=True, capture_output=True, text=True
+            ["git", "checkout", "-b", branch_name], check=True, capture_output=True
         )
 
         # Add all changes
-        subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
-
-        # Check if there are changes to commit
-        status = subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        
-        if not status.stdout.strip():
-            print("[INFO] No changes to commit")
-            return False
+        subprocess.run(["git", "add", "."], check=True, capture_output=True)
 
         # Commit changes
-        commit_message = f"feat: Add SEO optimization by CodeYogi\\n\\n- Enhanced HTML meta tags\\n- Updated README with SEO improvements\\n- Added Open Graph and Twitter Card support"
+        commit_message = f"feat: Add SEO optimization by GitHub SEO Optimizer\\n\\n- Enhanced HTML meta tags\\n- Updated README with SEO improvements\\n- Added Open Graph and Twitter Card support"
         subprocess.run(
-            ["git", "commit", "-m", commit_message], check=True, capture_output=True, text=True
+            ["git", "commit", "-m", commit_message], check=True, capture_output=True
         )
 
         # Push to origin
-        push_result = subprocess.run(
-            ["git", "push", "-u", "origin", branch_name],
-            capture_output=True,
-            text=True
+        subprocess.run(
+            ["git", "push", "origin", branch_name], check=True, capture_output=True
         )
-        
-        if push_result.returncode != 0:
-            print(f"[ERROR] Push failed: {push_result.stderr}")
-            return False
 
         print(f"[SUCCESS] Changes committed and pushed to branch: {branch_name}")
         return True
 
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] Git operation failed: {e}")
-        if hasattr(e, 'stderr') and e.stderr:
-            print(f"[ERROR] Details: {e.stderr}")
-        return False
-    except Exception as e:
-        print(f"[ERROR] Unexpected error: {e}")
         return False
     finally:
         os.chdir(original_cwd)
@@ -1040,14 +954,8 @@ async def optimize_github_repository_seo(
         temp_dir = tempfile.mkdtemp(prefix="seo_optimizer_")
         print(f"[INFO] Created temporary directory: {temp_dir}")
 
-        # Use provided token or fallback to environment token
-        token = github_token or os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
-        
-        if not token:
-            print("[WARNING] No GitHub token found. Push may fail if repository is private.")
-
-        # Clone repository with authentication
-        repo_path = clone_repository(github_url, temp_dir, token)
+        # Clone repository
+        repo_path = clone_repository(github_url, temp_dir)
 
         # Analyze repository content
         print("[INFO] Analyzing repository content...")
@@ -1070,26 +978,23 @@ async def optimize_github_repository_seo(
 
         # Process HTML files
         modified_files = []
-        if html_files:
-            for html_file in html_files:
-                try:
-                    with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
-                        original_html = f.read()
+        for html_file in html_files:
+            try:
+                with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
+                    original_html = f.read()
 
-                    optimized_html = inject_enhanced_seo_into_html(
-                        original_html, seo_metadata
-                    )
+                optimized_html = inject_enhanced_seo_into_html(
+                    original_html, seo_metadata
+                )
 
-                    with open(html_file, "w", encoding="utf-8") as f:
-                        f.write(optimized_html)
+                with open(html_file, "w", encoding="utf-8") as f:
+                    f.write(optimized_html)
 
-                    modified_files.append(html_file)
-                    print(f"[SUCCESS] Optimized: {html_file}")
+                modified_files.append(html_file)
+                print(f"[SUCCESS] Optimized: {html_file}")
 
-                except Exception as e:
-                    print(f"[WARNING] Failed to process {html_file}: {e}")
-        else:
-            print("[INFO] No HTML files found, will only update README.md")
+            except Exception as e:
+                print(f"[WARNING] Failed to process {html_file}: {e}")
 
         # Create/update README.md
         readme_path = os.path.join(repo_path, "README.md")
@@ -1101,24 +1006,13 @@ async def optimize_github_repository_seo(
             f.write(readme_content)
         modified_files.append(readme_path)
         print("[SUCCESS] Created SEO-optimized README.md")
-        
-        # Create .seo-metadata.json file for reference
-        metadata_file = os.path.join(repo_path, ".seo-metadata.json")
-        with open(metadata_file, "w", encoding="utf-8") as f:
-            json.dump({
-                "generated_at": datetime.now().isoformat(),
-                "metadata": seo_metadata,
-                "generated_by": "CodeYogi SEO Optimizer"
-            }, f, indent=2)
-        modified_files.append(metadata_file)
-        print("[SUCCESS] Created .seo-metadata.json")
 
         # Create unique branch name if not provided
         if not branch_name:
             branch_name = f"seo-optimization-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
-        # Commit and push changes (token already retrieved earlier)
-        if commit_and_push_changes(repo_path, branch_name, token):
+        # Commit and push changes
+        if commit_and_push_changes(repo_path, branch_name):
             pr_url = None
             pr_number = None
 

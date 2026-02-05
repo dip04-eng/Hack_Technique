@@ -197,11 +197,6 @@ export interface Message {
     data: SEOOptimization;
     repoName: string;
   };
-  rollbackIntelligence?: {
-    repoOwner: string;
-    repoName: string;
-    branch?: string;
-  };
 }
 
 export interface WorkflowOptimization {

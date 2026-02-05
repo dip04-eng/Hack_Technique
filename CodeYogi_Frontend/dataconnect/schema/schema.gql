@@ -1,0 +1,44 @@
+type User @table {
+  displayName: String!
+  createdAt: Timestamp!
+  email: String
+  photoUrl: String
+  organization: String
+}
+
+type Project @table {
+  name: String!
+  createdAt: Timestamp!
+  status: String!
+  description: String
+  startDate: Date
+  endDate: Date
+  owner: User
+}
+
+type Update @table {
+  message: String!
+  createdAt: Timestamp!
+  project: Project
+  user: User
+  attachmentUrl: String
+  type: String
+}
+
+type BestPracticeList @table {
+  name: String!
+  public: Boolean!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  user: User
+  description: String
+}
+
+type BestPracticeItem @table {
+  title: String!
+  position: Int!
+  bestPracticeList: BestPracticeList
+  description: String
+  url: String
+  notes: String
+}

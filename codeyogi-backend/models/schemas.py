@@ -516,39 +516,3 @@ class ReadmeAnalysisResult(BaseModel):
     completeness_score: Optional[int] = None
     error_message: Optional[str] = None
     timestamp: str
-
-
-# ========== POST-DEPLOY FAILURE ANALYSIS SCHEMAS ==========
-
-
-class PostDeployAnalysisRequest(BaseModel):
-    """
-    Request model for post-deployment failure analysis.
-    
-    This model captures all necessary information to perform root cause analysis
-    of deployment failures using AI-powered SRE analysis.
-    """
-    git_diff: str  # Git diff between last successful and current deployment (REQUIRED)
-    runtime_logs: str  # Production/runtime error logs (REQUIRED)
-    pipeline_logs: Optional[str] = ""  # CI/CD pipeline logs (OPTIONAL)
-    deployment_env: str = "production"  # Target environment (production, staging, etc.)
-
-
-class PostDeployAnalysisResult(BaseModel):
-    """
-    Response model for post-deployment failure analysis.
-    
-    Contains AI-generated root cause analysis with actionable insights.
-    """
-    success: bool
-    summary: str  # One-line explanation of what went wrong
-    root_cause: str  # Detailed explanation of the exact cause
-    affected_file: str  # File that caused the issue
-    affected_line: str  # Line number or function name
-    impact: str  # User-facing impact description
-    confidence: float  # Confidence score (0.0 - 1.0)
-    suggested_fix: str  # Concrete fix recommendation
-    detected_patterns: Optional[Dict[str, Any]] = None  # Detected failure patterns
-    deployment_env: str  # Environment where failure occurred
-    timestamp: str  # Analysis timestamp
-    error_message: Optional[str] = None  # Error if analysis failed

@@ -66,30 +66,6 @@ const SEOOptimizationView: React.FC<SEOOptimizationViewProps> = ({
     return new Date(timestamp).toLocaleString();
   };
 
-  // Handle error case
-  if (!data.success || !data.seo_metadata) {
-    return (
-      <div className="bg-red-900/50 border border-red-500/30 rounded-2xl p-6 shadow-2xl backdrop-blur-sm">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
-            <Search className="w-5 h-5 text-red-400" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-red-400">SEO Optimization Failed</h3>
-            <p className="text-gray-400 text-sm">
-              {data.repository || "Unknown repository"}
-            </p>
-          </div>
-        </div>
-        <div className="bg-black/30 rounded-xl p-4 border border-red-500/20">
-          <p className="text-red-300">
-            {data.error_message || "Failed to optimize SEO. Please check your GitHub token and repository permissions."}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="bg-gray-900/95 border border-purple-500/30 rounded-2xl p-6 shadow-2xl backdrop-blur-sm">
       {/* Header */}
@@ -178,7 +154,7 @@ const SEOOptimizationView: React.FC<SEOOptimizationViewProps> = ({
             <span className="text-green-400 font-semibold">Keywords</span>
           </div>
           <p className="text-white text-xl font-bold">
-            {data.seo_metadata?.keywords?.length || 0}
+            {data.seo_metadata.keywords.length}
           </p>
           <p className="text-gray-400 text-xs mt-1">SEO keywords added</p>
         </motion.div>
@@ -254,7 +230,7 @@ const SEOOptimizationView: React.FC<SEOOptimizationViewProps> = ({
             Keywords
           </h5>
           <div className="flex flex-wrap gap-2">
-            {(data.seo_metadata?.keywords || []).map((keyword, index) => (
+            {data.seo_metadata.keywords.map((keyword, index) => (
               <span
                 key={index}
                 className="px-2 py-1 bg-purple-600/20 text-purple-300 rounded-md text-xs border border-purple-500/30"

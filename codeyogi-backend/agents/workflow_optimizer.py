@@ -274,8 +274,7 @@ class WorkflowOptimizer:
         """Analyze repository structure to understand project type and needs"""
 
         # Detect programming language and framework
-        language_value = repo_info.get("language")
-        language = language_value.lower() if language_value else ""
+        language = repo_info.get("language", "").lower()
         if not language:
             language = self._detect_language_from_files(repo_path)
 

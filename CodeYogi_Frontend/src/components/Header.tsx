@@ -40,70 +40,14 @@ export const Header: React.FC<HeaderProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Use repositories from userProfile or fetch directly if needed
+  // Use repositories from userProfile
   useEffect(() => {
-    const loadRepositories = async () => {
-      console.log("Header: Loading repositories...");
-      console.log("Header: userProfile:", userProfile);
-      console.log("Header: user:", user);
-      
-      if (userProfile && Array.isArray(userProfile.repositories) && userProfile.repositories.length > 0) {
-        console.log("Loading repos from userProfile:", userProfile.repositories.length);
-        setRepositories(userProfile.repositories);
-      } else if (userProfile && userProfile.githubUsername) {
-        // Fallback: Fetch directly from GitHub API if Firestore doesn't have repos
-        console.log("No repos in profile, fetching from GitHub API for:", userProfile.githubUsername);
-        try {
-          const { fetchGitHubRepositories } = await import("../services/githubService");
-          const repos = await fetchGitHubRepositories(userProfile.githubUsername);
-          console.log("Fetched repos from GitHub API:", repos.length);
-          setRepositories(repos);
-        } catch (err) {
-          console.error("Failed to fetch repositories from GitHub API:", err);
-          setRepositories([]);
-        }
-      } else if (user) {
-        // Last resort: Try to extract GitHub username from user object
-        console.log("Attempting to extract GitHub username from user object");
-        let githubUsername = "";
-        
-        const userWithInfo = user as any;
-        if (userWithInfo.reloadUserInfo && userWithInfo.reloadUserInfo.screenName) {
-          githubUsername = userWithInfo.reloadUserInfo.screenName;
-          console.log("Extracted username from screenName:", githubUsername);
-        } else if (user.providerData[0]) {
-          const githubData = user.providerData[0];
-          if (githubData.providerId === "github.com" && githubData.uid) {
-            if (!/^\d+$/.test(githubData.uid)) {
-              githubUsername = githubData.uid;
-              console.log("Extracted username from providerData:", githubUsername);
-            }
-          }
-        }
-        
-        if (githubUsername) {
-          console.log("Fetching repos for extracted username:", githubUsername);
-          try {
-            const { fetchGitHubRepositories } = await import("../services/githubService");
-            const repos = await fetchGitHubRepositories(githubUsername);
-            console.log("Fetched repos from GitHub API:", repos.length);
-            setRepositories(repos);
-          } catch (err) {
-            console.error("Failed to fetch repositories from GitHub API:", err);
-            setRepositories([]);
-          }
-        } else {
-          console.log("No GitHub username available");
-          setRepositories([]);
-        }
-      } else {
-        console.log("No user authenticated");
-        setRepositories([]);
-      }
-    };
-
-    loadRepositories();
-  }, [userProfile, user]);
+    if (userProfile && Array.isArray(userProfile.repositories)) {
+      setRepositories(userProfile.repositories);
+    } else {
+      setRepositories([]);
+    }
+  }, [userProfile]);
 
   // Manual fetch handler
   const handleManualFetchRepos = async () => {
@@ -287,12 +231,24 @@ export const Header: React.FC<HeaderProps> = ({
               createPortal(
                 <AnimatePresence>
                   <motion.div
-                    ref={dropdownRef}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[999998]"
+                    onClick={(e) => {
+                      // Only close if clicking directly on the backdrop, not on child elements
+                      if (e.target === e.currentTarget) {
+                        console.log("Backdrop clicked, closing dropdown");
+                        setIsRepoDropdownOpen(false);
+                      }
+                    }}
+                  />
+                  <motion.div
                     initial={{ opacity: 0, y: -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    className="fixed w-80 bg-black/95 backdrop-blur-xl border border-green-500/30 rounded-lg shadow-2xl shadow-green-500/20 max-h-80 overflow-y-auto"
+                    className="fixed w-80 bg-black/95 backdrop-blur-xl border border-green-500/30 rounded-lg shadow-2xl shadow-green-500/20 z-[9999999] max-h-80 overflow-y-auto"
                     style={{
                       top: dropdownPosition.top,
                       left: dropdownPosition.left,
@@ -303,8 +259,9 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="p-3 border-b border-gray-700/50">
                       <button
                         className="w-full px-3 py-2 bg-gray-800/80 border border-green-500/30 rounded-lg text-green-300 text-sm hover:border-green-400/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={() => {
-                          console.log("Fetch Repos button clicked");
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           handleManualFetchRepos();
                         }}
                         disabled={manualFetchLoading || authLoading}
@@ -331,7 +288,7 @@ export const Header: React.FC<HeaderProps> = ({
                           repo.name
                         );
                         return (
-                          <button
+                          <motion.button
                             key={
                               repo.id
                                 ? String(repo.id)
@@ -339,8 +296,16 @@ export const Header: React.FC<HeaderProps> = ({
                                 ? repo.name
                                 : `repo-${index}`
                             }
-                            onClick={() => {
+                            whileHover={{
+                              backgroundColor: "rgba(34, 197, 94, 0.1)",
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
                               console.log("Repository clicked:", repo.name);
+                              handleRepoSelect(repo);
+                            }}
+                            onMouseDown={() => {
+                              console.log("Repository mouse down:", repo.name);
                               handleRepoSelect(repo);
                             }}
                             className="w-full p-3 text-left border-b border-gray-700/50 last:border-b-0 hover:bg-green-500/10 transition-colors"
@@ -373,7 +338,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 </div>
                               </div>
                             </div>
-                          </button>
+                          </motion.button>
                         );
                       })
                     )}

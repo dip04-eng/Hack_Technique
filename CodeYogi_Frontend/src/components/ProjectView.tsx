@@ -156,6 +156,7 @@ export const ProjectView: React.FC<ProjectViewProps> = () => {
         setRepoError("Please sign in to access your GitHub repositories");
         return;
       }
+      console.log("Opening repo modal, fetching repos...");
       fetchGitHubRepos();
     }
   }, [showRepoListModal]);
@@ -936,35 +937,44 @@ export const ProjectView: React.FC<ProjectViewProps> = () => {
         throw new Error("User not authenticated");
       }
 
-      // Get the GitHub token from the user's provider data
-      const githubProvider = user.providerData.find(
-        (provider) => provider.providerId === "github.com"
-      );
-
-      if (!githubProvider) {
-        throw new Error("GitHub account not linked");
+      // Get GitHub username from user object
+      const userWithInfo = user as any;
+      let githubUsername = "";
+      
+      if (userWithInfo.reloadUserInfo?.screenName) {
+        githubUsername = userWithInfo.reloadUserInfo.screenName;
+      } else if (user.providerData[0]?.uid) {
+        githubUsername = user.providerData[0].uid;
       }
 
-      // Get the user's access token
-      const token = await user.getIdToken();
+      if (!githubUsername) {
+        throw new Error("GitHub username not found. Please sign in again.");
+      }
 
-      const response = await fetch("https://api.github.com/user/repos", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      });
+      console.log("Fetching repos for GitHub user:", githubUsername);
+
+      // Use GitHub API to fetch user repositories (no token needed for public repos)
+      const response = await fetch(
+        `https://api.github.com/users/${githubUsername}/repos?sort=updated&per_page=100`,
+        {
+          headers: {
+            Accept: "application/vnd.github.v3+json",
+          },
+        }
+      );
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error(
-            "GitHub authentication failed. Please sign in again."
-          );
+        if (response.status === 404) {
+          throw new Error("GitHub user not found");
         }
-        throw new Error("Failed to fetch repositories");
+        if (response.status === 403) {
+          throw new Error("GitHub API rate limit exceeded. Please try again later.");
+        }
+        throw new Error(`Failed to fetch repositories: ${response.status}`);
       }
 
       const repos = await response.json();
+      console.log("Fetched repositories:", repos.length);
       setAvailableRepos(Array.isArray(repos) ? repos : []);
     } catch (error) {
       console.error("Error fetching repositories:", error);

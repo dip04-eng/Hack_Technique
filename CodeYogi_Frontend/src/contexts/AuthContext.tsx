@@ -93,32 +93,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   ) => {
     if (!user) return;
 
-    try {
-      const userRef = doc(db, "users", user.uid);
-      const userSnapshot = await getDoc(userRef);
+    const userRef = doc(db, "users", user.uid);
+    const userSnapshot = await getDoc(userRef);
 
-      // Fetch GitHub repositories if githubUsername is available
-      let repositories: any[] | undefined = undefined;
-      if (additionalData && additionalData.githubUsername) {
-        try {
-          repositories = await fetchGitHubRepositories(
-            additionalData.githubUsername
-          );
-        } catch (err) {
-          console.warn("Could not fetch GitHub repositories:", err);
-        }
+    // Fetch GitHub repositories if githubUsername is available
+    let repositories: any[] | undefined = undefined;
+    if (additionalData && additionalData.githubUsername) {
+      try {
+        repositories = await fetchGitHubRepositories(
+          additionalData.githubUsername
+        );
+      } catch (err) {
+        console.warn("Could not fetch GitHub repositories:", err);
       }
+    }
 
-      const userData: Partial<UserProfile> = {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        lastLoginAt: serverTimestamp(),
-        ...additionalData,
-        ...(repositories ? { repositories } : {}),
-      };
+    const userData: Partial<UserProfile> = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      lastLoginAt: serverTimestamp(),
+      ...additionalData,
+      ...(repositories ? { repositories } : {}),
+    };
 
+    try {
       if (!userSnapshot.exists()) {
         // Create new user profile
         const newUserData: UserProfile = {
@@ -142,25 +142,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } as UserProfile;
         setUserProfile(updatedProfile);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error creating/updating user profile:", err);
-      
-      // Handle offline errors gracefully - set basic profile from auth
-      if (err.code === 'unavailable' || err.message?.includes('offline')) {
-        console.warn("Firestore is offline, using basic profile from auth");
-        const basicProfile: UserProfile = {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          createdAt: null,
-          lastLoginAt: null,
-          ...additionalData,
-        };
-        setUserProfile(basicProfile);
-      } else {
-        setError("Failed to create user profile");
-      }
+      setError("Failed to create user profile");
     }
   };
   // Manually refresh GitHub repositories and update Firestore
@@ -218,16 +202,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       console.log("Final extracted GitHub username:", githubUsername);
-
-      // Store GitHub username in localStorage for offline use
-      if (githubUsername) {
-        try {
-          localStorage.setItem('githubUsername', githubUsername);
-          console.log("Stored GitHub username in localStorage:", githubUsername);
-        } catch (e) {
-          console.warn("Failed to store GitHub username in localStorage");
-        }
-      }
 
       // Initialize additional data
       let additionalData: any = {
@@ -296,13 +270,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return result;
     } catch (err: any) {
       console.error("GitHub sign in error:", err);
-      
-      // Handle offline errors gracefully
-      if (err.code === 'unavailable' || err.message?.includes('offline')) {
-        setError("You appear to be offline. Please check your internet connection.");
-      } else {
-        setError(err.message);
-      }
+      setError(err.message);
       return null;
     } finally {
       setLoading(false);
@@ -313,32 +281,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async (): Promise<void> => {
     try {
       setError(null);
-      
-      // Clear all localStorage data related to authentication
-      try {
-        localStorage.removeItem('githubUsername');
-        localStorage.clear(); // Clear all localStorage to remove any cached session data
-        console.log("Cleared localStorage");
-      } catch (e) {
-        console.warn("Failed to clear localStorage:", e);
-      }
-      
-      // Clear all sessionStorage
-      try {
-        sessionStorage.clear();
-        console.log("Cleared sessionStorage");
-      } catch (e) {
-        console.warn("Failed to clear sessionStorage:", e);
-      }
-      
-      // Sign out from Firebase (this also clears Firebase auth session)
       await signOut(auth);
-      
-      // Clear state
       setUser(null);
       setUserProfile(null);
-      
-      console.log("Successfully logged out - all sessions cleared");
     } catch (err: any) {
       console.error("Logout error:", err);
       setError(err.message);
@@ -389,66 +334,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Create profile if it doesn't exist
             await createOrUpdateUserProfile(user);
           }
-        } catch (err: any) {
+        } catch (err) {
           console.error("Error fetching user profile:", err);
-          
-          // Handle offline errors gracefully - create basic profile with GitHub data
-          if (err.code === 'unavailable' || err.message?.includes('offline')) {
-            console.warn("Firestore is offline, extracting profile from auth");
-            
-            // Extract GitHub username from auth user object
-            let githubUsername = "";
-            let githubId = "";
-            
-            // First, try to get from localStorage
-            try {
-              const cachedUsername = localStorage.getItem('githubUsername');
-              if (cachedUsername) {
-                githubUsername = cachedUsername;
-                console.log("Loaded GitHub username from localStorage:", githubUsername);
-              }
-            } catch (e) {
-              console.warn("Failed to load GitHub username from localStorage");
-            }
-            
-            // Try to get from reloadUserInfo
-            if (!githubUsername) {
-              const userWithInfo = user as any;
-              if (userWithInfo.reloadUserInfo && userWithInfo.reloadUserInfo.screenName) {
-                githubUsername = userWithInfo.reloadUserInfo.screenName;
-                console.log("Extracted GitHub username from screenName:", githubUsername);
-              }
-            }
-            
-            // Try to get from providerData
-            if (!githubUsername && user.providerData[0]) {
-              const githubData = user.providerData[0];
-              if (githubData.providerId === "github.com" && githubData.uid) {
-                githubId = githubData.uid;
-                // If uid is username, use it; if it's numeric, we'll fetch later
-                if (!/^\d+$/.test(githubId)) {
-                  githubUsername = githubId;
-                  console.log("Extracted GitHub username from providerData:", githubUsername);
-                }
-              }
-            }
-            
-            const basicProfile: UserProfile = {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName,
-              photoURL: user.photoURL,
-              createdAt: null,
-              lastLoginAt: null,
-              ...(githubUsername ? { githubUsername } : {}),
-              ...(githubId ? { githubId } : {}),
-            };
-            
-            console.log("Created basic profile with GitHub data:", basicProfile);
-            setUserProfile(basicProfile);
-          } else {
-            setError("Failed to fetch user profile");
-          }
+          setError("Failed to fetch user profile");
         }
       } else {
         setUser(null);

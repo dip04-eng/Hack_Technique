@@ -9,8 +9,6 @@ import {
   Activity,
   User,
   Monitor,
-  AlertTriangle,
-  RotateCcw,
 } from "lucide-react";
 import { Header } from "./Header";
 import { ChatInterface } from "./ChatInterface";
@@ -20,9 +18,6 @@ import { AnalyticsPanel } from "./AnalyticsPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { UserProfile } from "./UserProfile";
 import { RepoMonitoring } from "./RepoMonitoring";
-import { DeployFailureAnalysis } from "./DeployFailureAnalysis";
-import RollbackIntelligence from "./RollbackIntelligence";
-import { useSelectedRepository } from "../hooks/useSelectedRepository";
 
 type PanelType =
   | "chat"
@@ -31,14 +26,11 @@ type PanelType =
   | "analytics"
   | "settings"
   | "profile"
-  | "monitoring"
-  | "failure-analysis"
-  | "rollback-intelligence";
+  | "monitoring";
 
 export const Dashboard: React.FC = () => {
   const [activePanel, setActivePanel] = useState<PanelType>("chat");
   const [isConsoleActive, setIsConsoleActive] = useState(false);
-  const { selectedRepo } = useSelectedRepository();
 
   const navItems = [
     {
@@ -98,15 +90,6 @@ export const Dashboard: React.FC = () => {
     setActivePanel("monitoring");
   };
 
-  const handleFailureAnalysisClick = () => {
-    setActivePanel("failure-analysis");
-  };
-
-  const handleRollbackClick = () => {
-    // Open Rollback Intelligence as a separate panel
-    setActivePanel("rollback-intelligence");
-  };
-
   return (
     <div className="min-h-screen bg-theme-primary text-theme-primary relative overflow-hidden">
       {/* 3D Background */}
@@ -158,26 +141,6 @@ export const Dashboard: React.FC = () => {
               <Activity className="w-4 h-4" />
               <span className="text-sm">Repo Status</span>
             </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleFailureAnalysisClick}
-              className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 hover:bg-red-900/20 text-gray-300 hover:text-red-400 transition-all duration-300 border border-transparent hover:border-red-500/30"
-            >
-              <AlertTriangle className="w-4 h-4" />
-              <span className="text-sm">Deploy Failure Analysis</span>
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleRollbackClick}
-              className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 hover:bg-blue-900/20 text-gray-300 hover:text-blue-400 transition-all duration-300 border border-transparent hover:border-blue-500/30"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span className="text-sm">Rollback Intelligence</span>
-            </motion.button>
           </div>
         </motion.nav>
 
@@ -201,14 +164,6 @@ export const Dashboard: React.FC = () => {
               {activePanel === "settings" && <SettingsPanel />}
               {activePanel === "profile" && <UserProfile />}
               {activePanel === "monitoring" && <RepoMonitoring />}
-              {activePanel === "failure-analysis" && <DeployFailureAnalysis />}
-              {activePanel === "rollback-intelligence" && (
-                <RollbackIntelligence
-                  repoOwner={selectedRepo?.owner?.login || ""}
-                  repoName={selectedRepo?.name || ""}
-                  branch={selectedRepo?.default_branch || "main"}
-                />
-              )}
             </motion.div>
           </AnimatePresence>
         </div>

@@ -25,9 +25,7 @@ from agents import (
     multi_language_optimizer,
     seo_injector,
     readme_generator,
-    rollback_intelligence_agent,
 )
-from agents.deploy_failure_analyzer import DeployFailureAnalyzer
 from models.schemas import (
     RepoAnalysisRequest,
     RepoAnalysisResult,
@@ -58,8 +56,6 @@ from models.schemas import (
     ReadmeAnalysisRequest,
     ReadmeAnalysisResult,
     ReadmeContent,
-    PostDeployAnalysisRequest,
-    PostDeployAnalysisResult,
 )
 from models.events import GitHubWebhookPayload, RepositoryState, EventProcessingResult
 from core.event_manager import event_manager
@@ -137,7 +133,6 @@ def root():
                 "generate": "/readme/generate/",
                 "get_current": "/readme/current/{owner}/{repo}",
             },
-            "post_deploy_analysis": "/api/post-deploy-analysis",
             "agentic_monitoring": {
                 "register": "/repos/register",
                 "status": "/repos/{owner}/{repo}/status",
@@ -152,7 +147,6 @@ def root():
             "agentic_system": "See AGENTIC_SYSTEM.md",
             "file_analyzer": "See FILE_ANALYZER.md",
             "github_optimization": "New GitHub code optimization features with AI-powered suggestions",
-            "post_deploy_analysis": "AI-powered SRE root cause analysis for deployment failures",
         },
     }
 
@@ -664,22 +658,14 @@ async def optimize_repository_seo(request: SEOOptimizationRequest):
     try:
         from datetime import datetime
         import asyncio
-        from agents.seo_injector_api import optimize_seo_via_api
 
-        # Use provided token or fallback to environment token
-        github_token = request.github_token or os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
-        
-        if not github_token:
-            raise HTTPException(
-                status_code=400,
-                detail="GitHub token is required. Please configure GITHUB_TOKEN in .env file."
-            )
-
-        # Use API-based optimization (no git clone needed)
-        result = optimize_seo_via_api(
+        # Run the full SEO optimization
+        result = await seo_injector.optimize_github_repository_seo(
             github_url=str(request.github_url),
-            github_token=github_token,
+            github_token=request.github_token,
             branch_name=request.branch_name,
+            create_pr=request.create_pr,
+            auto_merge=request.auto_merge,
         )
 
         if result.get("success"):
@@ -918,154 +904,6 @@ async def get_current_readme(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# ========== POST-DEPLOY FAILURE ANALYSIS ENDPOINT ==========
-
-
-@app.post("/api/post-deploy-analysis", response_model=PostDeployAnalysisResult)
-async def analyze_deployment_failure(request: PostDeployAnalysisRequest):
-    """
-    🔍 POST-DEPLOY FAILURE ROOT CAUSE ANALYSIS
-    
-    This endpoint performs expert-level SRE analysis on deployment failures.
-    It correlates code changes (git diff) with runtime errors to identify the
-    exact root cause and provides actionable fix recommendations.
-    
-    HOW IT WORKS:
-    1. Receives git diff, runtime logs, pipeline logs, and deployment environment
-    2. Uses AI-powered pattern detection to identify common failure signatures
-    3. Sends data to Groq LLM with a senior SRE system prompt
-    4. LLM analyzes WHY the deployment failed (not just what failed)
-    5. Returns structured JSON with root cause, confidence score, and suggested fix
-    
-    WHAT IT ANALYZES:
-    - Blocking operations and loops causing latency
-    - Database queries in loops causing performance degradation
-    - Missing environment variables causing crashes
-    - Memory-intensive operations causing OOM
-    - Async-to-sync conversions causing request backlog
-    - File I/O in request paths causing slow responses
-    - And more...
-    
-    INPUT:
-    - git_diff (required): Git diff between last successful and failed deployment
-    - runtime_logs (required): Production error logs, stack traces, metrics
-    - pipeline_logs (optional): CI/CD pipeline execution logs
-    - deployment_env (default: "production"): Target environment name
-    
-    OUTPUT:
-    - summary: One-line explanation of the failure
-    - root_cause: Detailed explanation connecting code changes to failures
-    - affected_file: File that introduced the issue
-    - affected_line: Function/line number where the issue occurred
-    - impact: User-facing impact description
-    - confidence: AI confidence score (0.0 - 1.0)
-    - suggested_fix: Concrete, actionable fix recommendation
-    - detected_patterns: Known failure patterns identified
-    
-    EXAMPLE USE CASE:
-    Your deployment passed all tests but production API started timing out.
-    This endpoint will analyze your git diff and runtime logs to identify
-    that you added a blocking time.sleep() inside a loop processing 1000 users,
-    causing requests to take 45+ seconds instead of 120ms.
-    
-    Author: CodeYogi DevOps AI Platform
-    """
-    
-    try:
-        logger.info(
-            f"Starting post-deploy failure analysis for {request.deployment_env} environment"
-        )
-        
-        # Validate required inputs
-        if not request.git_diff or not request.git_diff.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="git_diff is required and cannot be empty"
-            )
-        
-        if not request.runtime_logs or not request.runtime_logs.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="runtime_logs is required and cannot be empty"
-            )
-        
-        # Initialize the Deploy Failure Analyzer agent
-        # This agent uses Groq's Llama 3.3 70B model for expert SRE analysis
-        groq_api_key = os.getenv("GROQ_API_KEY")
-        if not groq_api_key:
-            logger.error("GROQ_API_KEY not found in environment variables")
-            raise HTTPException(
-                status_code=500,
-                detail="AI service configuration error: GROQ_API_KEY not set"
-            )
-        
-        analyzer = DeployFailureAnalyzer(api_key=groq_api_key)
-        
-        logger.info("Performing AI-powered root cause analysis...")
-        
-        # Perform the analysis
-        # This calls the Groq API with a specialized SRE system prompt
-        # The AI will correlate code changes with runtime failures
-        analysis_result = analyzer.analyze_failure(
-            git_diff=request.git_diff,
-            pipeline_logs=request.pipeline_logs or "",
-            runtime_logs=request.runtime_logs,
-            deployment_env=request.deployment_env
-        )
-        
-        logger.info(
-            f"Analysis complete with {analysis_result.get('confidence', 0):.0%} confidence"
-        )
-        
-        # Build the successful response
-        response = PostDeployAnalysisResult(
-            success=True,
-            summary=analysis_result.get("summary", "Analysis completed"),
-            root_cause=analysis_result.get("root_cause", "Unable to determine root cause"),
-            affected_file=analysis_result.get("affected_file", "Unknown"),
-            affected_line=analysis_result.get("affected_line", "Unknown"),
-            impact=analysis_result.get("impact", "Service degradation"),
-            confidence=float(analysis_result.get("confidence", 0.5)),
-            suggested_fix=analysis_result.get("suggested_fix", "Manual investigation required"),
-            detected_patterns=analysis_result.get("detected_patterns"),
-            deployment_env=request.deployment_env,
-            timestamp=datetime.now().isoformat(),
-            error_message=None
-        )
-        
-        # Log any fallback mode usage (when AI fails but pattern detection succeeds)
-        if analysis_result.get("fallback_mode"):
-            logger.warning(
-                f"Analysis completed in fallback mode: {analysis_result.get('ai_error')}"
-            )
-        
-        return response
-        
-    except HTTPException:
-        # Re-raise HTTP exceptions (validation errors)
-        raise
-        
-    except Exception as e:
-        # Log unexpected errors
-        logger.error(f"Unexpected error during failure analysis: {str(e)}", exc_info=True)
-        
-        # Return a structured error response instead of crashing
-        return PostDeployAnalysisResult(
-            success=False,
-            summary="Analysis service error",
-            root_cause="Failed to complete root cause analysis due to service error",
-            affected_file="N/A",
-            affected_line="N/A",
-            impact="Analysis not performed",
-            confidence=0.0,
-            suggested_fix="Please check your inputs and try again. If the issue persists, contact support.",
-            detected_patterns=None,
-            deployment_env=request.deployment_env,
-            timestamp=datetime.now().isoformat(),
-            error_message=str(e)
-        )
 
 
 # ========== NEW AGENTIC EVENT-DRIVEN ENDPOINTS ==========
@@ -1376,207 +1214,6 @@ async def get_monitored_repos():
     }
 
 
-# ================================
-# ROLLBACK INTELLIGENCE ENDPOINTS
-# ================================
-
-class RollbackCandidatesRequest(BaseModel):
-    """Request model for fetching rollback candidates"""
-    repo_owner: str
-    repo_name: str
-    branch: str = "main"
-    limit: int = 10
-    github_token: Optional[str] = None
-
-
-class RollbackExecuteRequest(BaseModel):
-    """Request model for executing rollback"""
-    repo_owner: str
-    repo_name: str
-    rollback_number: int
-    branch: str = "main"
-    force: bool = False
-    github_token: Optional[str] = None
-
-
-@app.post("/api/rollback/candidates")
-async def get_rollback_candidates(request: RollbackCandidatesRequest):
-    """
-    Fetch numbered list of recent commits as rollback candidates.
-    
-    Returns:
-        - Numbered list of commits (1 = current, 2 = previous, etc.)
-        - AI-powered recommendation for best rollback target
-        - Safety analysis for each candidate
-    """
-    try:
-        # Use provided token or get from environment
-        github_token = request.github_token or get_github_token()
-        if not github_token:
-            raise HTTPException(
-                status_code=400,
-                detail="GitHub token is required. Please provide it or set GITHUB_TOKEN environment variable."
-            )
-        
-        # Initialize agent
-        agent = rollback_intelligence_agent.RollbackIntelligenceAgent(
-            github_token=github_token
-        )
-        
-        # Get candidates
-        result = agent.get_rollback_candidates(
-            repo_owner=request.repo_owner,
-            repo_name=request.repo_name,
-            branch=request.branch,
-            limit=request.limit
-        )
-        
-        if not result.get("success"):
-            raise HTTPException(
-                status_code=400,
-                detail=result.get("error", "Failed to fetch rollback candidates")
-            )
-        
-        return result
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching rollback candidates: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/rollback/execute")
-async def execute_rollback(request: RollbackExecuteRequest):
-    """
-    Execute rollback to the specified commit number.
-    
-    This performs a SAFE rollback by creating instructions for reverting to the target state.
-    NO destructive operations - preserves git history.
-    
-    Args:
-        request: Contains repo info, rollback number, and options
-    
-    Returns:
-        - Rollback execution status
-        - Git instructions for applying changes
-        - Deployment workflow trigger information
-    """
-    try:
-        # Use provided token or get from environment
-        github_token = request.github_token or get_github_token()
-        if not github_token:
-            raise HTTPException(
-                status_code=400,
-                detail="GitHub token is required. Please provide it or set GITHUB_TOKEN environment variable."
-            )
-        
-        # Initialize agent
-        agent = rollback_intelligence_agent.RollbackIntelligenceAgent(
-            github_token=github_token
-        )
-        
-        # Execute rollback
-        result = agent.execute_rollback(
-            repo_owner=request.repo_owner,
-            repo_name=request.repo_name,
-            rollback_number=request.rollback_number,
-            branch=request.branch,
-            create_rollback_commit=True,
-            force=request.force
-        )
-        
-        if not result.get("success"):
-            if result.get("requires_confirmation"):
-                # Return safety analysis for user confirmation
-                return {
-                    "success": False,
-                    "requires_confirmation": True,
-                    "safety_analysis": result.get("safety_analysis"),
-                    "message": result.get("message")
-                }
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail=result.get("error", "Failed to execute rollback")
-                )
-        
-        return result
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error executing rollback: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/rollback/safety-check")
-async def check_rollback_safety(request: RollbackExecuteRequest):
-    """
-    Perform detailed safety analysis for a specific rollback candidate.
-    Use this before executing rollback to show warnings to user.
-    
-    Args:
-        request: Contains repo info and rollback number
-    
-    Returns:
-        - Safety level (SAFE/CAUTION/RISKY)
-        - List of warnings
-        - Recommendations
-    """
-    try:
-        # Use provided token or get from environment
-        github_token = request.github_token or get_github_token()
-        if not github_token:
-            raise HTTPException(
-                status_code=400,
-                detail="GitHub token is required."
-            )
-        
-        # Initialize agent
-        agent = rollback_intelligence_agent.RollbackIntelligenceAgent(
-            github_token=github_token
-        )
-        
-        # Get candidates first
-        candidates_result = agent.get_rollback_candidates(
-            repo_owner=request.repo_owner,
-            repo_name=request.repo_name,
-            branch=request.branch
-        )
-        
-        if not candidates_result.get("success"):
-            raise HTTPException(
-                status_code=400,
-                detail="Failed to fetch candidates for safety check"
-            )
-        
-        # Analyze safety
-        safety = agent.analyze_rollback_safety(
-            repo_owner=request.repo_owner,
-            repo_name=request.repo_name,
-            rollback_number=request.rollback_number,
-            candidates=candidates_result["candidates"]
-        )
-        
-        return {
-            "success": True,
-            "safety_analysis": safety
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error checking rollback safety: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "service": "CodeYogi Backend"}
-
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

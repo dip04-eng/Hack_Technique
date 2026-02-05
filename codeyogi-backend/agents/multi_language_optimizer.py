@@ -491,42 +491,13 @@ class GitHubMultiLanguageOptimizer:
             # Add the optimization report to the files
             optimized_files["CODEYOGI_OPTIMIZATION_REPORT.md"] = report_content
 
-            # Generate README.md if it doesn't exist or update if it does
-            try:
-                from agents import readme_generator
-                import asyncio
-                
-                # Get existing README content if it exists
-                existing_readme = None
-                for file_opt in analysis_result.get("file_optimizations", []):
-                    if file_opt["file"].upper() == "README.MD":
-                        existing_readme = file_opt.get("original_content", "")
-                        break
-                
-                # Generate comprehensive README
-                readme_gen = readme_generator.ReadmeGenerator()
-                readme_result = asyncio.run(readme_gen.generate_readme_for_repository(
-                    github_url=analysis_result["repository_url"],
-                    github_token=self.github_token,
-                    existing_content=existing_readme
-                ))
-                
-                if readme_result.get("success") and readme_result.get("content"):
-                    optimized_files["README.md"] = readme_result["content"]
-                    print("✅ Generated/Updated README.md")
-                else:
-                    print("⚠️ Could not generate README.md")
-            except Exception as e:
-                print(f"⚠️ Error generating README.md: {str(e)}")
-                # Continue without README if generation fails
-
-            # Create PR with actual optimized files, README, AND the detailed report
+            # Create PR with actual optimized files AND the detailed report
             pr_result = self.pr_creator.create_multi_file_optimization_pr(
                 repo_name=repo_full_name,
                 optimized_files=optimized_files,
                 improvement_summary=improvement_summary,
                 branch_name="codeyogi-code-optimization",
-                commit_message="🤖 CodeYogi: Multi-language code optimization with README",
+                commit_message="🤖 CodeYogi: Multi-language code optimization suggestions",
             )
 
             if pr_result and pr_result.get("success"):
